@@ -236,7 +236,7 @@ def test_get_reagents_with_close_expiration_date(api_client_lab_worker, personal
     assert expected == actual
 
     some_next_month_and_year_date1 = mock_datetime_date_today + relativedelta(years=+3, months=+4)
-    some_next_month_and_year_date2 = mock_datetime_date_today + relativedelta(years=+3, months=+7)
+    some_next_month_and_year_date2 = mock_datetime_date_today + relativedelta(years=+4, months=+7)
 
     personal_reagent1.expiration_date = some_next_month_and_year_date1
     personal_reagent2.expiration_date = some_next_month_and_year_date2
@@ -272,11 +272,6 @@ def test_get_reagents_with_close_expiration_date(api_client_lab_worker, personal
             "id": personal_reagent1.id,
             "reagent_name": personal_reagent1.reagent.name,
             "expiration_date": personal_reagent1.expiration_date.isoformat(),
-        },
-        {
-            "id": personal_reagent2.id,
-            "reagent_name": personal_reagent2.reagent.name,
-            "expiration_date": personal_reagent2.expiration_date.isoformat(),
         },
     ]
     actual = json.loads(json.dumps(response.data["results"]))

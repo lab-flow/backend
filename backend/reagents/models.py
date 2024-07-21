@@ -269,15 +269,7 @@ class PersonalReagent(models.Model):
     receipt_purchase_date = models.DateField()
     expiration_date = models.DateField()
     disposal_utilization_date = models.DateField(null=True, blank=True, default=None)
-
-    LGM_LAB = "LGM"
-    LG_LAB = "LG"
-    LABORATORIES = [
-        (LGM_LAB, "LGM"),
-        (LG_LAB, "LG"),
-    ]
-    laboratory = models.CharField(max_length=3, choices=LABORATORIES)
-
+    laboratory = models.CharField(max_length=20)
     room = models.CharField(max_length=8)
     detailed_location = models.CharField(max_length=20, blank=True)
     is_usage_record_generated = models.BooleanField(default=False)

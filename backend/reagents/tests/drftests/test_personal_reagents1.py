@@ -1943,7 +1943,7 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
     assert expected == actual
 
     # `laboratory`
-    url = f"{reverse('personal_reagents-list')}?laboratory={PersonalReagent.LG_LAB}"
+    url = f"{reverse('personal_reagents-list')}?laboratory=LG"
     response = client.get(url)
 
     assert response.status_code == status.HTTP_200_OK

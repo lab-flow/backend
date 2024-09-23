@@ -435,8 +435,22 @@ def projects_procedures(api_client_lab_manager, api_client_project_manager, api_
 
 @pytest.fixture
 # pylint: disable=redefined-outer-name
+def laboratories():
+# pylint: enable=redefined-outer-name
+    laboratory1 = models.Laboratory.objects.create(
+        laboratory="LGM",
+    )
+    laboratory2 = models.Laboratory.objects.create(
+        laboratory="LG",
+    )
+
+    return laboratory1, laboratory2
+
+
+@pytest.fixture
+# pylint: disable=redefined-outer-name
 def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_worker, reagents, projects_procedures,
-                      mock_files):
+                      laboratories, mock_files):
 # pylint: enable=redefined-outer-name
     _, _ = mock_files
     _, admin = api_client_admin
@@ -444,6 +458,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
     _, lab_worker = api_client_lab_worker
     reagent1, reagent2 = reagents
     project_procedure1, _ = projects_procedures
+    laboratory1, laboratory2 = laboratories
 
     personal_reagent1 = models.PersonalReagent.objects.create(
         reagent=reagent1,
@@ -453,7 +468,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
         lot_no="2000/02/03",
         receipt_purchase_date=mock_datetime_date_today,
         expiration_date=mock_datetime_date_today + datetime.timedelta(days=3),
-        laboratory="LGM",
+        laboratory=laboratory1,
         room="315",
         detailed_location="Lodówka D17",
         user_comment="Bardzo ważny odczynnik.",
@@ -466,7 +481,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
         lot_no="1000/01/01",
         receipt_purchase_date=mock_datetime_date_today - datetime.timedelta(days=30),
         expiration_date=mock_datetime_date_today + datetime.timedelta(days=6),
-        laboratory="LG",
+        laboratory=laboratory2,
         room="314",
         detailed_location="Lodówka A0",
         user_comment="",
@@ -479,7 +494,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
         lot_no="4000/01/30",
         receipt_purchase_date=mock_datetime_date_today - datetime.timedelta(days=15),
         expiration_date=mock_datetime_date_today + datetime.timedelta(days=20),
-        laboratory="LG",
+        laboratory=laboratory2,
         room="314",
         detailed_location="Lodówka C3",
         user_comment="",
@@ -494,7 +509,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
         receipt_purchase_date=mock_datetime_date_today - datetime.timedelta(days=60),
         expiration_date=mock_datetime_date_today - datetime.timedelta(days=45),
         disposal_utilization_date=mock_datetime_date_today - datetime.timedelta(days=46),
-        laboratory="LGM",
+        laboratory=laboratory1,
         room="315",
         detailed_location="Lodówka D17",
         is_archived=True,

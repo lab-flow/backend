@@ -9,13 +9,14 @@ from django.urls import reverse
 
 from rest_framework import status
 
-from reagents.models import PersonalReagent, ProjectProcedure
+from reagents.models import Laboratory, PersonalReagent, ProjectProcedure
 from reagents.tests.drftests.conftest import assert_timezone_now_gte_datetime, model_to_dict, mock_datetime_date_today
 
 
 @pytest.mark.django_db
 def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                api_client_lab_worker, api_client_anon, projects_procedures, personal_reagents):
+                                api_client_lab_worker, api_client_anon, projects_procedures, laboratories,
+                                personal_reagents):
     _, project_manager = api_client_project_manager
     _, lab_manager = api_client_lab_manager
     _, lab_worker = api_client_lab_worker
@@ -336,6 +337,139 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Laboratories
+    laboratory1, laboratory2 = laboratories
+
+    client, _ = api_client_admin
+    url = reverse("laboratory-list")
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [
+        {
+            "id": laboratory1.id,
+            "laboratory": "LGM",
+        },
+        {
+            "id": laboratory2.id,
+            "laboratory": "LG",
+        },
+    ]
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    url = f"{reverse('laboratory-list')}?ordering=id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [
+        {
+            "id": laboratory1.id,
+            "laboratory": "LGM",
+        },
+        {
+            "id": laboratory2.id,
+            "laboratory": "LG",
+        },
+    ]
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    url = f"{reverse('laboratory-list')}?ordering=-id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    # `laboratory`
+    url = f"{reverse('laboratory-list')}?ordering=laboratory"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [
+        {
+            "id": laboratory2.id,
+            "laboratory": "LG",
+        },
+        {
+            "id": laboratory1.id,
+            "laboratory": "LGM",
+        },
+    ]
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    url = f"{reverse('laboratory-list')}?ordering=-laboratory"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    # Searching
+    # `laboratory`
+    url = f"{reverse('laboratory-list')}?search=LGM"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [
+        {
+            "id": laboratory1.id,
+            "laboratory": "LGM",
+        },
+    ]
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
     # Personal reagents
     personal_reagent1, personal_reagent2, personal_reagent3, personal_reagent4 = personal_reagents
 
@@ -424,7 +558,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -455,7 +592,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -486,7 +626,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -520,7 +663,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -599,7 +745,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -630,7 +779,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -672,7 +824,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -706,7 +861,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -752,7 +910,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -799,7 +960,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -843,7 +1007,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -877,7 +1044,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -924,7 +1094,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -971,7 +1144,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1002,7 +1178,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1050,7 +1229,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1097,7 +1279,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1144,7 +1329,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1178,7 +1366,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1222,7 +1413,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1266,7 +1460,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1297,7 +1494,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1358,7 +1558,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1405,7 +1608,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1449,7 +1655,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1483,7 +1692,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1530,7 +1742,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1577,7 +1792,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1608,7 +1826,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1662,7 +1883,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1704,7 +1928,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1735,7 +1962,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1769,7 +1999,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1818,7 +2051,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1863,7 +2099,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1894,7 +2133,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1925,7 +2167,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1943,7 +2188,7 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
     assert expected == actual
 
     # `laboratory`
-    url = f"{reverse('personal_reagents-list')}?laboratory={PersonalReagent.LG_LAB}"
+    url = f"{reverse('personal_reagents-list')}?laboratory={laboratory2.id}"
     response = client.get(url)
 
     assert response.status_code == status.HTTP_200_OK
@@ -1968,7 +2213,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1999,7 +2247,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2045,7 +2296,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2079,7 +2333,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2122,7 +2379,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2166,7 +2426,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2200,7 +2463,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2246,7 +2512,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2280,7 +2549,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2323,7 +2595,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2366,7 +2641,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2397,7 +2675,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2444,7 +2725,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2475,7 +2759,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2519,7 +2806,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2553,7 +2843,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2600,7 +2893,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2631,7 +2927,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2677,7 +2976,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2711,7 +3013,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2760,7 +3065,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2791,7 +3099,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2833,7 +3144,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -2867,7 +3181,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -2913,7 +3230,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -2944,7 +3264,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent2_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -2986,7 +3309,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": None,
             "clp_classifications": personal_reagent3_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -3020,7 +3346,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3071,7 +3400,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3105,7 +3437,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3161,7 +3496,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3195,7 +3533,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3251,7 +3592,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3285,7 +3629,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3341,7 +3688,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3375,7 +3725,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3431,7 +3784,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3465,7 +3821,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3521,7 +3880,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3555,7 +3917,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3611,7 +3976,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3645,7 +4013,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3701,7 +4072,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3735,7 +4109,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3793,7 +4170,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3827,7 +4207,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3886,7 +4269,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "200",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -3920,7 +4306,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -3982,7 +4371,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -4016,7 +4408,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Zamrażarka D17",
             "is_critical": True,
@@ -4076,7 +4471,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -4122,7 +4520,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent4_clp_classifications,
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -4168,7 +4569,10 @@ def test_list_personal_reagents(api_client_admin, api_client_lab_manager, api_cl
             "project_procedure_manager_id": project_procedure1.manager.id,
             "clp_classifications": personal_reagent1_clp_classifications,
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -4196,6 +4600,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
                                   api_client_lab_worker, api_client_anon, reagents):
     # pylint: disable=no-member
     ProjectProcedure.history.all().delete()
+    Laboratory.history.all().delete()
     PersonalReagent.history.all().delete()
     # pylint: enable=no-member
 
@@ -4457,6 +4862,179 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
     client, _ = api_client_admin
     url = reverse("personal_reagents-list")
 
+    # Laboratory
+    client, _ = api_client_admin
+    url = reverse("laboratory-list")
+
+    post_data = {
+        "laboratory": "LGM",
+    }
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    laboratory1_id = response.data["id"]
+    db_laboratory1 = Laboratory.objects.get(pk=laboratory1_id)
+
+    history_data1 = post_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_laboratory1.id,
+    }
+
+    post_data["id"] = laboratory1_id
+    assert post_data == model_to_dict(db_laboratory1)
+
+    post_data = {
+        "laboratory": "LG",
+    }
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    laboratory2_id = response.data["id"]
+    db_laboratory2 = Laboratory.objects.get(pk=laboratory2_id)
+
+    history_data2 = post_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_laboratory2.id,
+    }
+
+    post_data["id"] = laboratory2_id
+    assert post_data == model_to_dict(db_laboratory2)
+
+    # Check history
+    client, _ = api_client_admin
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2, history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    response = client.get(f"{reverse('laboratory-get-historical-records')}?ordering=id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('laboratory-get-historical-records')}?ordering=-id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    # `laboratory`
+    response = client.get(f"{reverse('laboratory-get-historical-records')}?ordering=laboratory")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2, history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('laboratory-get-historical-records')}?ordering=-laboratory")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    # Searching
+    # `laboratory`
+    response = client.get(f"{reverse('laboratory-get-historical-records')}?search=LGM")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    post_data = {
+        "laboratory": "LG",
+    }
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.post(url, post_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    client, _ = api_client_admin
+    url = reverse("personal_reagents-list")
+
     # Personal reagents
     # We can never set `disposal_utilization_date`, `is_usage_record_generated` and `is_archived`
     post_data = {
@@ -4468,7 +5046,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)),
         "disposal_utilization_date": (mock_datetime_date_today + datetime.timedelta(days=17)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1_id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
         "is_usage_record_generated": True,
@@ -4498,6 +5076,10 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
             "id": project_procedure_id,
             "repr": db_project_procedure.name,
         },
+        "laboratory": {
+            "id": laboratory1_id,
+            "repr": db_laboratory1.laboratory,
+        },
         "main_owner": {
             "id": lab_worker.id,
             "repr": lab_worker.username,
@@ -4517,7 +5099,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "1234",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=14)),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
         "user_comment": "Ważny odczynnik.",
@@ -4545,6 +5127,10 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "project_procedure": {
             "id": project_procedure_id,
             "repr": db_project_procedure.name,
+        },
+        "laboratory": {
+            "id": laboratory2_id,
+            "repr": db_laboratory2.laboratory,
         },
         "main_owner": {
             "id": lab_manager.id,
@@ -4624,7 +5210,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "12345",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=21)),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
         "user_comment": "Ważny odczynnik.",
@@ -4656,7 +5242,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "123456",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=28)),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
     }
     response = client.post(url, post_data)
@@ -4683,7 +5269,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "123456",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=28)).isoformat(),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
     }
 
@@ -4715,7 +5301,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "123456",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=28)).isoformat(),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
     }
 
@@ -4735,7 +5321,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "1234567",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=28)),
-        "laboratory": "LG",
+        "laboratory": laboratory2_id,
         "room": "314",
     }
     response = client.post(url, post_data)
@@ -4757,7 +5343,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "12345678",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1_id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
         "user_comment": "Ważny odczynnik.",
@@ -4776,7 +5362,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "12345678",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1_id,
         "room": "314",
         "user_comment": "Ważny odczynnik.",
     }
@@ -4791,7 +5377,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "12345678",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1_id,
         "room": "314",
         "detailed_location": "",
         "user_comment": "Ważny odczynnik.",
@@ -4811,7 +5397,7 @@ def test_create_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "12345678",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1_id,
         "room": "314",
         "user_comment": "Ważny odczynnik.",
     }

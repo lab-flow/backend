@@ -227,7 +227,7 @@ def generate_sanepid_pip_report_data(personal_reagents_queryset):
             idx,
             reagent.name,
             reagent.producer.abbreviation,
-            personal_reagent.laboratory,
+            personal_reagent.laboratory.laboratory,
             personal_reagent.room,
             personal_reagent.main_owner,
             personal_reagent.receipt_purchase_date,
@@ -262,7 +262,7 @@ def generate_lab_manager_report_data(personal_reagents_queryset):
             idx,
             reagent.name,
             reagent.producer.abbreviation,
-            personal_reagent.laboratory,
+            personal_reagent.laboratory.laboratory,
             personal_reagent.room,
             personal_reagent.main_owner,
             personal_reagent.receipt_purchase_date,
@@ -300,7 +300,7 @@ def generate_projects_procedures_report_data(personal_reagents_queryset):
             personal_reagent.project_procedure,
             reagent.name,
             reagent.producer.abbreviation,
-            personal_reagent.laboratory,
+            personal_reagent.laboratory.laboratory,
             personal_reagent.room,
             personal_reagent.detailed_location,
             personal_reagent.main_owner,
@@ -368,7 +368,7 @@ def generate_all_personal_reagents_report_data(personal_reagents_queryset):
             personal_reagent.receipt_purchase_date,
             personal_reagent.expiration_date,
             personal_reagent.disposal_utilization_date,
-            personal_reagent.laboratory,
+            personal_reagent.laboratory.laboratory,
             personal_reagent.room,
             personal_reagent.detailed_location,
             "Tak" if reagent.is_usage_record_required else "Nie",
@@ -458,7 +458,7 @@ def generate_personal_view_report_data(personal_reagents_queryset):
             personal_reagent.receipt_purchase_date,
             personal_reagent.expiration_date,
             personal_reagent.disposal_utilization_date,
-            personal_reagent.laboratory,
+            personal_reagent.laboratory.laboratory,
             personal_reagent.room,
             personal_reagent.detailed_location,
             "Tak" if reagent.is_usage_record_required else "Nie",
@@ -636,12 +636,14 @@ def generate_project_manager_statistics():
 
 def generate_lab_manager_statistics():
     laboratory_personal_reagents = PersonalReagent.objects.values(
-        "laboratory", reagent_name=F("reagent__name"), catalog_no=F("reagent__catalog_no")
+        "laboratory__laboratory",
+        reagent_name=F("reagent__name"),
+        catalog_no=F("reagent__catalog_no"),
     ).annotate(count=Count("laboratory")).order_by("-count")
 
     nested_aggregated_laboratory_personal_reagents = defaultdict(list)
     for personal_reagent in laboratory_personal_reagents:
-        nested_aggregated_laboratory_personal_reagents[personal_reagent["laboratory"]].append(
+        nested_aggregated_laboratory_personal_reagents[personal_reagent["laboratory__laboratory"]].append(
             {
                 "reagent_name": personal_reagent["reagent_name"],
                 "catalog_no": personal_reagent["catalog_no"],
@@ -665,7 +667,7 @@ def generate_lab_manager_statistics():
         ).annotate(count=Count("reagent__catalog_no")).values(
             "year",
             "count",
-            "laboratory",
+            "laboratory__laboratory",
             reagent_name=F("reagent__name"),
             catalog_no=F("reagent__catalog_no"),
         ).order_by("-count")
@@ -673,7 +675,7 @@ def generate_lab_manager_statistics():
     nested_aggregated_laboratory_disposed_utilized_personal_reagents = defaultdict(lambda: defaultdict(list))
     for personal_reagent in laboratory_disposed_utilized_personal_reagents:
         nested_aggregated_laboratory_disposed_utilized_personal_reagents[
-            personal_reagent["laboratory"]
+            personal_reagent["laboratory__laboratory"]
         ][
             personal_reagent["year"]
         ].append(

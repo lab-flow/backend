@@ -93,6 +93,15 @@ class ProjectProcedurePermission(BasePermission):
         return False
 
 
+class LaboratoryPermission(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if user.is_staff or (user.is_authenticated and view.action in ("list", "retrieve")):
+            return True
+
+        return False
+
+
 class PersonalReagentPermission(BasePermission):
     def has_permission(self, request, view):
         user = request.user

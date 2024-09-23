@@ -260,6 +260,17 @@ class ProjectProcedure(models.Model):
         ordering = ["id"]
 
 
+class Laboratory(models.Model):
+    laboratory = models.CharField(max_length=30, unique=True)
+    history = HistoricalRecords(user_db_constraint=False)
+
+    def __str__(self):  # pylint: disable=invalid-str-returned
+        return self.laboratory
+
+    class Meta:
+        ordering = ["id"]
+
+
 class PersonalReagent(models.Model):
     reagent = models.ForeignKey(Reagent, on_delete=models.PROTECT)
     project_procedure = models.ForeignKey(ProjectProcedure, on_delete=models.PROTECT, null=True, blank=True)
@@ -269,15 +280,7 @@ class PersonalReagent(models.Model):
     receipt_purchase_date = models.DateField()
     expiration_date = models.DateField()
     disposal_utilization_date = models.DateField(null=True, blank=True, default=None)
-
-    LGM_LAB = "LGM"
-    LG_LAB = "LG"
-    LABORATORIES = [
-        (LGM_LAB, "LGM"),
-        (LG_LAB, "LG"),
-    ]
-    laboratory = models.CharField(max_length=3, choices=LABORATORIES)
-
+    laboratory = models.ForeignKey(Laboratory, on_delete=models.PROTECT)
     room = models.CharField(max_length=8)
     detailed_location = models.CharField(max_length=20, blank=True)
     is_usage_record_generated = models.BooleanField(default=False)

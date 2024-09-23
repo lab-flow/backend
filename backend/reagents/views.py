@@ -469,6 +469,16 @@ class ProjectProcedureViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagina
         return history
 
 
+class LaboratoryViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
+    model = models.Laboratory
+    queryset = model.objects.order_by("id")
+    serializer_class = serializers.LaboratorySerializer
+    permission_classes = [permissions.LaboratoryPermission]
+    filter_backends = [OrderingFilter, SearchFilter]
+    ordering_fields = ["id", "laboratory"]
+    search_fields = ["laboratory"]
+
+
 class PersonalReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
     model = models.PersonalReagent
     queryset = model.objects.order_by("id")

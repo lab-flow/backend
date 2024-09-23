@@ -13,13 +13,14 @@ from django.utils.text import get_valid_filename
 from rest_framework import status
 
 from reagents import generators
-from reagents.models import Reagent, PersonalReagent, ProjectProcedure
+from reagents.models import Laboratory, PersonalReagent, ProjectProcedure, Reagent
 from reagents.tests.drftests.conftest import assert_timezone_now_gte_datetime, model_to_dict, mock_datetime_date_today
 
 
 @pytest.mark.django_db
 def test_retrieve_personal_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                    api_client_lab_worker, api_client_anon, projects_procedures, personal_reagents):
+                                    api_client_lab_worker, api_client_anon, projects_procedures, laboratories,
+                                    personal_reagents):
     _, project_manager = api_client_project_manager
     _, lab_worker = api_client_lab_worker
 
@@ -50,6 +51,55 @@ def test_retrieve_personal_reagents(api_client_admin, api_client_lab_manager, ap
             },
         ],
         "is_validated_by_admin": True,
+    }
+    actual = json.loads(json.dumps(response.data))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    actual = json.loads(json.dumps(response.data))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Laboratories
+    laboratory1, _ = laboratories
+
+    client, _ = api_client_admin
+    url = reverse("laboratory-detail", args=[laboratory1.id])
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = {
+        "id": laboratory1.id,
+        "laboratory": "LGM",
     }
     actual = json.loads(json.dumps(response.data))
 
@@ -133,7 +183,10 @@ def test_retrieve_personal_reagents(api_client_admin, api_client_lab_manager, ap
         "project_procedure_manager_id": project_procedure1.manager.id,
         "clp_classifications": personal_reagent1_clp_classifications,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": {
+            "id": laboratory1.id,
+            "repr": laboratory1.laboratory,
+        },
         "room": "315",
         "detailed_location": "Lodówka D17",
         "is_critical": True,
@@ -185,9 +238,10 @@ def test_retrieve_personal_reagents(api_client_admin, api_client_lab_manager, ap
 @pytest.mark.django_db
 def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
                                   api_client_lab_worker, api_client_anon, reagents, projects_procedures,
-                                  personal_reagents):
+                                  laboratories, personal_reagents):
     # pylint: disable=no-member
     ProjectProcedure.history.all().delete()
+    Laboratory.history.all().delete()
     PersonalReagent.history.all().delete()
     # pylint: enable=no-member
 
@@ -345,6 +399,74 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    # Laboratories
+    laboratory1, laboratory2 = laboratories
+
+    client, admin = api_client_admin
+    url = reverse("laboratory-detail", args=[laboratory1.id])
+
+    put_data = {
+        "laboratory": "LN",
+    }
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    laboratory1_id = response.data["id"]
+    db_laboratory = Laboratory.objects.get(pk=laboratory1_id)
+
+    history_data1 = put_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_laboratory.id,
+    }
+
+    put_data["id"] = laboratory1_id
+    assert put_data == model_to_dict(db_laboratory)
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    put_data = {
+        "laboratory": "LO",
+    }
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    client, admin = api_client_admin
+
     reagent1, _ = reagents
     personal_reagent1, _, _, _ = personal_reagents
 
@@ -359,7 +481,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2000/02/03",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "315",
     }
     response = client.put(url, put_data)
@@ -387,6 +509,10 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "project_procedure": {
             "id": db_project_procedure.id,
             "repr": db_project_procedure.name,
+        },
+        "laboratory": {
+            "id": db_laboratory.id,
+            "repr": db_laboratory.laboratory,
         },
         "main_owner": {
             "id": lab_manager.id,
@@ -420,7 +546,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/22",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -447,7 +573,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/22",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -474,7 +600,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/22",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -492,7 +618,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/22",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=333)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -519,7 +645,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/22",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3333)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -550,7 +676,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/23",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3333)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -565,7 +691,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/23",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -592,7 +718,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/23",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -619,7 +745,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
         "disposal_utilization_date": (mock_datetime_date_today + datetime.timedelta(days=2)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
         "is_archived": True,
     }
@@ -655,7 +781,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "lot_no": "2024/01/23",
         "receipt_purchase_date": mock_datetime_date_today,
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
-        "laboratory": "LG",
+        "laboratory": laboratory2.id,
         "room": "316",
     }
     response = client.put(url, put_data)
@@ -665,10 +791,11 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
 
 @pytest.mark.django_db
 def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                          api_client_lab_worker, api_client_anon, projects_procedures, personal_reagents
-                                          ):
+                                          api_client_lab_worker, api_client_anon, projects_procedures, laboratories,
+                                          personal_reagents):
     # pylint: disable=no-member
     ProjectProcedure.history.all().delete()
+    Laboratory.history.all().delete()
     PersonalReagent.history.all().delete()
     # pylint: enable=no-member
 
@@ -800,6 +927,70 @@ def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manag
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+    # Laboratories
+    _, laboratory2 = laboratories
+
+    client, _ = api_client_admin
+    url = reverse("laboratory-detail", args=[laboratory2.id])
+
+    patch_data = {
+        "laboratory": "LP",
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    db_laboratory = Laboratory.objects.get(pk=response.data["id"])
+
+    history_data1 = patch_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_laboratory.id,
+    }
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    patch_data = {
+        "laboratory": "LR",
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
     # Personal reagents
     personal_reagent1, _, _, _ = personal_reagents
 
@@ -838,7 +1029,10 @@ def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manag
         "receipt_purchase_date": personal_reagent1.receipt_purchase_date.isoformat(),
         "expiration_date": personal_reagent1.expiration_date.isoformat(),
         "disposal_utilization_date": None,
-        "laboratory": "LGM",
+        "laboratory": {
+            "id": personal_reagent1.laboratory.id,
+            "repr": personal_reagent1.laboratory.laboratory,
+        },
         "room": "315",
         "detailed_location": "Lodówka D17",
         "is_usage_record_generated": False,
@@ -979,7 +1173,7 @@ def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manag
 
     client = api_client_anon
     patch_data = {
-        "laboratory": "LGM",
+        "room": "312",
     }
     response = client.patch(url, patch_data)
 
@@ -988,14 +1182,16 @@ def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manag
 
 @pytest.mark.django_db
 def test_delete_personal_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                  api_client_lab_worker, api_client_anon, projects_procedures, personal_reagents):
+                                  api_client_lab_worker, api_client_anon, projects_procedures, laboratories,
+                                  personal_reagents):
     # pylint: disable=no-member
     ProjectProcedure.history.all().delete()
+    Laboratory.history.all().delete()
     PersonalReagent.history.all().delete()
     # pylint: enable=no-member
 
-    # The `project_procedure` field in PersonalReagent is protected, so it cannot be deleted before the personal reagent
-    # is deleted.
+    # The `project_procedure` and `laboratory` fields in PersonalReagent is protected, so it cannot be deleted
+    # before the personal reagent is deleted.
 
     # Projects/procedures
     projects_procedure1, _ = projects_procedures
@@ -1003,6 +1199,16 @@ def test_delete_personal_reagents(api_client_admin, api_client_lab_manager, api_
     client, _ = api_client_admin
     project_procedeure_id = projects_procedure1.id
     url = reverse("projectprocedure-detail", args=[project_procedeure_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Laboratories
+    laboratory1, _ = laboratories
+
+    client, _ = api_client_admin
+    laboratory_id = laboratory1.id
+    url = reverse("laboratory-detail", args=[laboratory_id])
     response = client.delete(url)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -1047,7 +1253,10 @@ def test_delete_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "receipt_purchase_date": personal_reagent1.receipt_purchase_date.isoformat(),
         "expiration_date": personal_reagent1.expiration_date.isoformat(),
         "disposal_utilization_date": None,
-        "laboratory": "LGM",
+        "laboratory": {
+            "id": personal_reagent1.laboratory.id,
+            "repr": personal_reagent1.laboratory.laboratory,
+        },
         "room": "315",
         "detailed_location": "Lodówka D17",
         "user_comment": "Bardzo ważny odczynnik.",
@@ -1202,12 +1411,67 @@ def test_delete_personal_reagents(api_client_admin, api_client_lab_manager, api_
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Now we can remove laboratories
+    laboratory1, laboratory2 = laboratories
+
+    client, _ = api_client_admin
+    laboratory_id = laboratory1.id
+    url = reverse("laboratory-detail", args=[laboratory_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    assert not Laboratory.objects.filter(pk=laboratory_id).exists()
+
+    history_data1 = {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "-",
+        "pk": laboratory_id,
+        "laboratory": "LGM",
+    }
+
+    # Check history
+    response = client.get(reverse("laboratory-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    url = reverse("laboratory-detail", args=[laboratory2.id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
 
 @pytest.mark.django_db
 def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_project_manager, api_client_lab_worker,
-                           api_client_anon, reagents, projects_procedures, personal_reagents):
+                           api_client_anon, reagents, projects_procedures, laboratories, personal_reagents):
     reagent1, reagent2 = reagents
     project_procedure1, _ = projects_procedures
+    laboratory1, laboratory2 = laboratories
     personal_reagent1, personal_reagent2, personal_reagent3, personal_reagent4 = personal_reagents
 
     personal_reagent1_hazard_statements = [
@@ -1361,7 +1625,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent3_clp_classifications,
             "signal_word": "WRN",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=20)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka C3",
             "is_critical": True,
@@ -1406,7 +1673,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent4_clp_classifications,
             "signal_word": "WRN",
             "expiration_date": (mock_datetime_date_today - datetime.timedelta(days=45)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": False,
@@ -1467,7 +1737,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent1_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1504,7 +1777,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent2_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1557,7 +1833,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent1_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1607,7 +1886,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent2_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=6)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": {
+                "id": laboratory2.id,
+                "repr": laboratory2.laboratory,
+            },
             "room": "314",
             "detailed_location": "Lodówka A0",
             "is_critical": False,
@@ -1647,7 +1929,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent1_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1712,7 +1997,10 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "clp_classifications": personal_reagent1_clp_classifications,
             "signal_word": "DGR",
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)).isoformat(),
-            "laboratory": "LGM",
+            "laboratory": {
+                "id": laboratory1.id,
+                "repr": laboratory1.laboratory,
+            },
             "room": "315",
             "detailed_location": "Lodówka D17",
             "is_critical": True,
@@ -1782,11 +2070,12 @@ def test_generate_usage_record_data(personal_reagents):
 
 @pytest.mark.django_db
 def test_generate_usage_record(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                               api_client_lab_worker, api_client_anon, personal_reagents):
+                               api_client_lab_worker, api_client_anon, laboratories, personal_reagents):
     # pylint: disable=no-member
     PersonalReagent.history.all().delete()
     # pylint: enable=no-member
 
+    _, laboratory2 = laboratories
     personal_reagent1, personal_reagent2, personal_reagent3, personal_reagent4 = personal_reagents
 
     # Admins can generate usage records for any personal reagent
@@ -1825,7 +2114,10 @@ def test_generate_usage_record(api_client_admin, api_client_lab_manager, api_cli
         "receipt_purchase_date": personal_reagent.receipt_purchase_date.isoformat(),
         "expiration_date": personal_reagent.expiration_date.isoformat(),
         "disposal_utilization_date": None,
-        "laboratory": "LG",
+        "laboratory": {
+            "id": laboratory2.id,
+            "repr": laboratory2.laboratory,
+        },
         "room": "314",
         "detailed_location": "Lodówka A0",
         "user_comment": "",
@@ -2013,7 +2305,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             1,
             reagent1.name,
             reagent1.producer.abbreviation,
-            personal_reagent1.laboratory,
+            personal_reagent1.laboratory.laboratory,
             personal_reagent1.room,
             personal_reagent1.main_owner,
             personal_reagent1.receipt_purchase_date,
@@ -2024,7 +2316,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             2,
             reagent2.name,
             reagent2.producer.abbreviation,
-            personal_reagent2.laboratory,
+            personal_reagent2.laboratory.laboratory,
             personal_reagent2.room,
             personal_reagent2.main_owner,
             personal_reagent2.receipt_purchase_date,
@@ -2035,7 +2327,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             3,
             reagent3.name,
             reagent3.producer.abbreviation,
-            personal_reagent3.laboratory,
+            personal_reagent3.laboratory.laboratory,
             personal_reagent3.room,
             personal_reagent3.main_owner,
             personal_reagent3.receipt_purchase_date,
@@ -2046,7 +2338,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             4,
             reagent4.name,
             reagent4.producer.abbreviation,
-            personal_reagent4.laboratory,
+            personal_reagent4.laboratory.laboratory,
             personal_reagent4.room,
             personal_reagent4.main_owner,
             personal_reagent4.receipt_purchase_date,
@@ -2170,7 +2462,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             1,
             reagent1.name,
             reagent1.producer.abbreviation,
-            personal_reagent1.laboratory,
+            personal_reagent1.laboratory.laboratory,
             personal_reagent1.room,
             personal_reagent1.main_owner,
             personal_reagent1.receipt_purchase_date,
@@ -2183,7 +2475,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             2,
             reagent2.name,
             reagent2.producer.abbreviation,
-            personal_reagent2.laboratory,
+            personal_reagent2.laboratory.laboratory,
             personal_reagent2.room,
             personal_reagent2.main_owner,
             personal_reagent2.receipt_purchase_date,
@@ -2196,7 +2488,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             3,
             reagent3.name,
             reagent3.producer.abbreviation,
-            personal_reagent3.laboratory,
+            personal_reagent3.laboratory.laboratory,
             personal_reagent3.room,
             personal_reagent3.main_owner,
             personal_reagent3.receipt_purchase_date,
@@ -2209,7 +2501,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             4,
             reagent4.name,
             reagent4.producer.abbreviation,
-            personal_reagent4.laboratory,
+            personal_reagent4.laboratory.laboratory,
             personal_reagent4.room,
             personal_reagent4.main_owner,
             personal_reagent4.receipt_purchase_date,
@@ -2336,7 +2628,7 @@ def test_generate_projects_procedures_report_data(personal_reagents):
             personal_reagent1.project_procedure,
             reagent1.name,
             reagent1.producer.abbreviation,
-            personal_reagent1.laboratory,
+            personal_reagent1.laboratory.laboratory,
             personal_reagent1.room,
             personal_reagent1.detailed_location,
             personal_reagent1.main_owner,
@@ -2349,7 +2641,7 @@ def test_generate_projects_procedures_report_data(personal_reagents):
             personal_reagent2.project_procedure,
             reagent2.name,
             reagent2.producer.abbreviation,
-            personal_reagent2.laboratory,
+            personal_reagent2.laboratory.laboratory,
             personal_reagent2.room,
             personal_reagent2.detailed_location,
             personal_reagent2.main_owner,
@@ -2362,7 +2654,7 @@ def test_generate_projects_procedures_report_data(personal_reagents):
             personal_reagent3.project_procedure,
             reagent3.name,
             reagent3.producer.abbreviation,
-            personal_reagent3.laboratory,
+            personal_reagent3.laboratory.laboratory,
             personal_reagent3.room,
             personal_reagent3.detailed_location,
             personal_reagent3.main_owner,
@@ -2375,7 +2667,7 @@ def test_generate_projects_procedures_report_data(personal_reagents):
             personal_reagent4.project_procedure,
             reagent4.name,
             reagent4.producer.abbreviation,
-            personal_reagent4.laboratory,
+            personal_reagent4.laboratory.laboratory,
             personal_reagent4.room,
             personal_reagent4.detailed_location,
             personal_reagent4.main_owner,
@@ -2534,7 +2826,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             personal_reagent1.receipt_purchase_date,
             personal_reagent1.expiration_date,
             personal_reagent1.disposal_utilization_date,
-            personal_reagent1.laboratory,
+            personal_reagent1.laboratory.laboratory,
             personal_reagent1.room,
             personal_reagent1.detailed_location,
             "Tak",
@@ -2554,7 +2846,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             personal_reagent2.receipt_purchase_date,
             personal_reagent2.expiration_date,
             personal_reagent2.disposal_utilization_date,
-            personal_reagent2.laboratory,
+            personal_reagent2.laboratory.laboratory,
             personal_reagent2.room,
             personal_reagent2.detailed_location,
             "Tak",
@@ -2574,7 +2866,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             personal_reagent3.receipt_purchase_date,
             personal_reagent3.expiration_date,
             personal_reagent3.disposal_utilization_date,
-            personal_reagent3.laboratory,
+            personal_reagent3.laboratory.laboratory,
             personal_reagent3.room,
             personal_reagent3.detailed_location,
             "Nie",
@@ -2594,7 +2886,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             personal_reagent4.receipt_purchase_date,
             personal_reagent4.expiration_date,
             personal_reagent4.disposal_utilization_date,
-            personal_reagent4.laboratory,
+            personal_reagent4.laboratory.laboratory,
             personal_reagent4.room,
             personal_reagent4.detailed_location,
             "Nie",
@@ -2767,7 +3059,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent1.receipt_purchase_date,
             personal_reagent1.expiration_date,
             personal_reagent1.disposal_utilization_date,
-            personal_reagent1.laboratory,
+            personal_reagent1.laboratory.laboratory,
             personal_reagent1.room,
             personal_reagent1.detailed_location,
             "Tak",
@@ -2791,7 +3083,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent2.receipt_purchase_date,
             personal_reagent2.expiration_date,
             personal_reagent2.disposal_utilization_date,
-            personal_reagent2.laboratory,
+            personal_reagent2.laboratory.laboratory,
             personal_reagent2.room,
             personal_reagent2.detailed_location,
             "Tak",
@@ -2815,7 +3107,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent3.receipt_purchase_date,
             personal_reagent3.expiration_date,
             personal_reagent3.disposal_utilization_date,
-            personal_reagent3.laboratory,
+            personal_reagent3.laboratory.laboratory,
             personal_reagent3.room,
             personal_reagent3.detailed_location,
             "Nie",
@@ -2885,7 +3177,7 @@ def test_generate_personal_view_report(api_client_admin, api_client_lab_manager,
 @pytest.mark.django_db
 def test_generate_statistics(api_client_admin, api_client_lab_manager, api_client_project_manager,
                              api_client_lab_worker, api_client_anon, reagent_types, producers, units,
-                             storage_conditions, reagents, projects_procedures, mock_files):
+                             storage_conditions, reagents, projects_procedures, laboratories, mock_files):
     # Using personal reagents from the main test fixture wouldn't be enough to test this action thoroughly.
     # That's why we're going to create a lot more mock personal reagents for this method specifically.
     # We'll also reverse the usual order of users making requests based on their roles because admins get most of the
@@ -2898,6 +3190,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
     storage_condition1, _ = storage_conditions
     reagent1, reagent2 = reagents
     project_procedure1, project_procedure2 = projects_procedures
+    laboratory1, laboratory2 = laboratories
 
     client = api_client_anon
     url = reverse("personal_reagents-generate-statistics")
@@ -2916,7 +3209,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -2926,7 +3219,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -3158,7 +3451,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -3169,7 +3462,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -3295,7 +3588,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -3475,7 +3768,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
         "lot_no": "123",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-        "laboratory": "LGM",
+        "laboratory": laboratory1.id,
         "room": "314",
         "detailed_location": "Zamrażarka D17",
     }
@@ -3698,6 +3991,8 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
     }
     actual = response.data
 
+    print(expected)
+    print(actual)
     assert expected == actual
 
     url = reverse("personal_reagents-list")
@@ -3778,7 +4073,7 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
             "lot_no": "123",
             "receipt_purchase_date": mock_datetime_date_today.isoformat(),
             "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=7)).isoformat(),
-            "laboratory": "LG",
+            "laboratory": laboratory2.id,
             "room": "314",
             "detailed_location": "Zamrażarka D17",
         }

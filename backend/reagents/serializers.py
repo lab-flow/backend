@@ -669,6 +669,21 @@ class ProjectProcedureHistoricalRecordsSerializer(ProjectProcedureReadSerializer
         ]
 
 
+class LaboratorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.Laboratory
+        fields = "__all__"
+
+
+class LaboratoryHistoricalRecordsSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="history_id", read_only=True)
+    pk = serializers.IntegerField(source="id", read_only=True)
+
+    class Meta:
+        model = models.Laboratory.history.model  # pylint: disable=no-member
+        exclude = ["history_id"]
+
+
 class ReagentFieldReagentSerializer(serializers.ModelSerializer):
     repr = serializers.CharField(source="name", read_only=True)
 
@@ -685,6 +700,14 @@ class ReagentFieldProjectProcedureSerializer(serializers.ModelSerializer):
         fields = ["id", "repr"]
 
 
+class ReagentFieldLaboratorySerializer(serializers.ModelSerializer):
+    repr = serializers.CharField(source="laboratory", read_only=True)
+
+    class Meta:
+        model = models.Laboratory
+        fields = ["id", "repr"]
+
+
 class PersonalReagentReadSerializer(serializers.ModelSerializer):
     reagent = ReagentFieldReagentSerializer(read_only=True)
     producer = ReagentFieldProducerSerializer(source="reagent.producer", read_only=True)
@@ -696,6 +719,7 @@ class PersonalReagentReadSerializer(serializers.ModelSerializer):
         read_only=True,
         allow_null=True,
     )
+    laboratory = ReagentFieldLaboratorySerializer(read_only=True)
     clp_classifications = serializers.SerializerMethodField()
     is_usage_record_required = serializers.BooleanField(source="reagent.is_usage_record_required", read_only=True)
 
@@ -779,6 +803,7 @@ class PersonalViewSerializer(serializers.ModelSerializer):
     catalog_no = serializers.CharField(source="reagent.catalog_no", read_only=True)
     is_usage_record_required = serializers.BooleanField(source="reagent.is_usage_record_required", read_only=True)
     project_procedure = ReagentFieldProjectProcedureSerializer(read_only=True)
+    laboratory = ReagentFieldLaboratorySerializer(read_only=True)
     hazard_statements = ReagentFieldHazardStatementReadSerializer(
         source="reagent.hazard_statements", read_only=True, many=True
     )
@@ -820,6 +845,7 @@ class PersonalReagentHistoricalRecordsSerializer(serializers.ModelSerializer):
     reagent = ReagentFieldReagentSerializer(read_only=True)
     main_owner = ReagentFieldUserSerializer(read_only=True)
     project_procedure = ReagentFieldProjectProcedureSerializer(read_only=True)
+    laboratory = ReagentFieldLaboratorySerializer(read_only=True)
 
     class Meta:
         model = models.PersonalReagent.history.model  # pylint: disable=no-member

@@ -29,7 +29,7 @@ class ReagentHistoricalRecordsFilter(ReagentFilter):
 
 
 class PersonalReagentFilter(filters.FilterSet):
-    laboratory = filters.ChoiceFilter(choices=models.PersonalReagent.LABORATORIES)
+    laboratory = filters.ModelMultipleChoiceFilter(queryset=models.Laboratory.objects.all())
     project_procedure = filters.ModelMultipleChoiceFilter(queryset=models.ProjectProcedure.objects.all())
     main_owner = filters.ModelMultipleChoiceFilter(queryset=models.User.objects.all())
     reagent = filters.ModelMultipleChoiceFilter(queryset=models.Reagent.objects.all())

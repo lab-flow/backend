@@ -581,16 +581,19 @@ class ReagentModifySerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         """Check that:
-            1. Usage record is required for the reagent if any of its hazard statements indicate that.
+            1. Usage record is required for the reagent if any of its hazard statements indicate that
+               or the requester is an admin.
         """
         is_usage_record_required = get_attr_value_for_validation(self, attrs, "is_usage_record_required")
         hazard_statements = get_attr_value_for_validation(self, attrs, "hazard_statements")
 
         if not is_usage_record_required:
-            if ((isinstance(hazard_statements, list)
+            user = self.context['request'].user
+            if (not user.is_staff
+                    and ((isinstance(hazard_statements, list)
                         and any(map(lambda x: x.is_usage_record_required, hazard_statements)))
                     or (not isinstance(hazard_statements, list)
-                        and hazard_statements.all().filter(is_usage_record_required=True).exists())):
+                        and hazard_statements.all().filter(is_usage_record_required=True).exists()))):
                 raise serializers.ValidationError(detail={
                     "is_usage_record_required": "Karta rozchodu jest wymagana ze względu na jeden z kodów H "
                                                 "tego odczynnika."

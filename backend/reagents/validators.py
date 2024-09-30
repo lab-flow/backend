@@ -40,15 +40,17 @@ class PrecautionaryStatementCodeValidator(validators.RegexValidator):
 
 @deconstructible
 class SafetyInstructionNameValidator(validators.RegexValidator):
-    regex = r"^$|^IB(000[0-9]|00[0-9]{2}|0[0-9]{3}|[0-9]{4})$"
+    regex = r"^$|^IB(000[0-9]|00[0-9]{2}|0[0-9]{3}|[0-9]{4})(.[0-9])?$"
     message = "Nr instrukcji bezpieczeństwa musi zaczynać się od IB, a następnie posiadać liczbę wypełnioną "\
-              "od lewej zerami. Przykłady: IB0001, IB1234."
+              "od lewej zerami. Dodatkowo może kończyć się na kropce i cyfrze dla oznaczenia wersji. "\
+              "Przykłady: IB0001, IB1234, IB5678.2"
     flags = 0
 
 
 @deconstructible
 class SafetyDataSheetNameValidator(validators.RegexValidator):
-    regex = r"^$|^SDS(000[0-9]|00[0-9]{2}|0[0-9]{3}|[0-9]{4})$"
+    regex = r"^$|^SDS(000[0-9]|00[0-9]{2}|0[0-9]{3}|[0-9]{4})(.[0-9])?$"
     message = "MSDS/SDS producenta musi zaczynać się od SDS, a następnie posiadać liczbę wypełnioną "\
-              "od lewej zerami. Przykłady: SDS0001, SDS1234."
+              "od lewej zerami. Dodatkowo może kończyć się na kropce i cyfrze dla oznaczenia wersji. "\
+              "Przykłady: SDS0001, SDS1234, SDS5678.3"
     flags = 0

@@ -40,7 +40,7 @@ class HazardPermission(BasePermission):
 
 
 class ReagentFieldPermission(BasePermission):
-    "Common class for Producer, ReagentType, Concentration, Unit, PurityQuality and StorageCondition."
+    """Common class for Producer, ReagentType, Concentration, Unit, PurityQuality and StorageCondition."""
     def has_permission(self, request, view):
         user = request.user
         if user.is_staff:
@@ -52,11 +52,21 @@ class ReagentFieldPermission(BasePermission):
         return False
 
 
-class ReagentPermission(BasePermission):
+class ReagentFilePermission(BasePermission):
+    """Common class for SafetyDataSheet and SafetyInstruction."""
     def has_permission(self, request, view):
-        if view.action in ("get_safety_instructions", "get_safety_instruction"):
+        user = request.user
+        if user.is_staff or view.action in ("list", "retrieve"):
             return True
 
+        if view.action == "create":
+            return user.is_authenticated and has_lab_role(user)
+
+        return False
+
+
+class ReagentPermission(BasePermission):
+    def has_permission(self, request, view):
         user = request.user
         if user.is_staff:
             return True
@@ -96,7 +106,7 @@ class ProjectProcedurePermission(BasePermission):
 class LaboratoryPermission(BasePermission):
     def has_permission(self, request, view):
         user = request.user
-        if user.is_staff or (user.is_authenticated and view.action in ("list", "retrieve")):
+        if user.is_staff or (user.is_authenticated and has_lab_role(user) and view.action in ("list", "retrieve")):
             return True
 
         return False

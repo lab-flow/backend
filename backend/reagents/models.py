@@ -201,6 +201,42 @@ class PrecautionaryStatement(models.Model):
         ordering = ["id"]
 
 
+class SafetyDataSheet(models.Model):
+    safety_data_sheet = models.FileField(upload_to="SafetyDataSheets")
+
+    name_validator = validators.SafetyDataSheetNameValidator()
+    name = models.CharField(max_length=7, validators=[name_validator])
+
+    reagent_name = models.CharField(max_length=100)
+    is_validated_by_admin = models.BooleanField()
+    history = HistoricalRecords(user_db_constraint=False)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = "reagents_safety_data_sheet"
+        ordering = ["id"]
+
+
+class SafetyInstruction(models.Model):
+    safety_instruction = models.FileField(upload_to="SafetyInstructions")
+
+    name_validator = validators.SafetyInstructionNameValidator()
+    name = models.CharField(max_length=6, validators=[name_validator])
+
+    reagent_name = models.CharField(max_length=100)
+    is_validated_by_admin = models.BooleanField()
+    history = HistoricalRecords(user_db_constraint=False)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        db_table = "reagents_safety_instruction"
+        ordering = ["id"]
+
+
 class Reagent(models.Model):
     type = models.ForeignKey(ReagentType, on_delete=models.PROTECT)
     producer = models.ForeignKey(Producer, on_delete=models.PROTECT)
@@ -213,14 +249,8 @@ class Reagent(models.Model):
     storage_conditions = models.ManyToManyField(StorageCondition)
     hazard_statements = models.ManyToManyField(HazardStatement, blank=True)
     precautionary_statements = models.ManyToManyField(PrecautionaryStatement, blank=True)
-    safety_data_sheet = models.FileField(upload_to="SafetyDataSheets")
-    safety_instruction = models.FileField(upload_to="SafetyInstructions", blank=True)
-
-    safety_instruction_name_validator = validators.SafetyInstructionNameValidator()
-    safety_instruction_name = models.CharField(max_length=6, blank=True, validators=[safety_instruction_name_validator])
-    safety_data_sheet_name_validator = validators.SafetyDataSheetNameValidator()
-    safety_data_sheet_name = models.CharField(max_length=7, blank=True, validators=[safety_data_sheet_name_validator])
-
+    safety_data_sheet = models.ForeignKey(SafetyDataSheet, on_delete=models.PROTECT)
+    safety_instruction = models.ForeignKey(SafetyInstruction, on_delete=models.PROTECT, null=True, blank=True)
     cas_no = models.CharField(max_length=50, blank=True)
     other_info = models.CharField(max_length=200, blank=True)
     kit_contents = models.CharField(max_length=300, blank=True)

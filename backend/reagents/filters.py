@@ -10,8 +10,8 @@ class ReagentFilter(filters.FilterSet):
             ("name", "name"),
             ("producer__abbreviation", "producer"),
             ("catalog_no", "catalog_no"),
-            ("safety_instruction_name", "safety_instruction_name"),
-            ("safety_data_sheet_name", "safety_data_sheet_name"),
+            ("safety_instruction__name", "safety_instruction_name"),
+            ("safety_data_sheet__name", "safety_data_sheet_name"),
         ),
     )
 

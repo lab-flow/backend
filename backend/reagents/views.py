@@ -322,10 +322,48 @@ class StorageConditionViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagina
         return super().get_serializer_class()
 
 
+class SafetyDataSheetViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
+    model = models.SafetyDataSheet
+    queryset = model.objects.order_by("id")
+    serializer_class = serializers.SafetyDataSheetSerializer
+    permission_classes = [permissions.ReagentFilePermission]
+    filter_backends = [OrderingFilter, SearchFilter]
+    ordering_fields = ["id", "name", "reagent_name"]
+    search_fields = ["name", "reagent_name"]
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if self.action == "create":
+            if user.is_staff:
+                return serializers.SafetyDataSheetCreateAsAdminSerializer
+            return serializers.SafetyDataSheetCreateWithLabRoleSerializer
+
+        return super().get_serializer_class()
+
+
+class SafetyInstructionViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
+    model = models.SafetyInstruction
+    queryset = model.objects.order_by("id")
+    serializer_class = serializers.SafetyInstructionSerializer
+    permission_classes = [permissions.ReagentFilePermission]
+    filter_backends = [OrderingFilter, SearchFilter]
+    ordering_fields = ["id", "name", "reagent_name"]
+    search_fields = ["name", "reagent_name"]
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if self.action == "create":
+            if user.is_staff:
+                return serializers.SafetyInstructionCreateAsAdminSerializer
+            return serializers.SafetyInstructionCreateWithLabRoleSerializer
+
+        return super().get_serializer_class()
+
+
 class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
     model = models.Reagent
     queryset = model.objects.select_related(
-        "type", "producer", "concentration", "unit", "purity_quality"
+        "type", "producer", "concentration", "unit", "purity_quality", "safety_data_sheet", "safety_instruction"
     ).prefetch_related(
         Prefetch("storage_conditions", queryset=models.StorageCondition.objects.only("id", "storage_condition")),
         Prefetch("hazard_statements", queryset=models.HazardStatement.objects.only("id", "code")),
@@ -338,6 +376,12 @@ class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
         "concentration__is_validated_by_admin",
         "unit__is_validated_by_admin",
         "purity_quality__is_validated_by_admin",
+        "safety_data_sheet__safety_data_sheet",
+        "safety_data_sheet__reagent_name",
+        "safety_data_sheet__is_validated_by_admin",
+        "safety_instruction__safety_instruction",
+        "safety_instruction__reagent_name",
+        "safety_instruction__is_validated_by_admin",
     ).order_by("id")
     serializer_class = serializers.ReagentReadSerializer
     permission_classes = [permissions.ReagentPermission]
@@ -347,13 +391,13 @@ class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
         "name",
         "producer__abbreviation",
         "catalog_no",
-        "safety_instruction_name",
+        "safety_instruction__name",
     ]
 
     def get_queryset(self):
         if self.action == "get_historical_records":
             return self.model.history.select_related(  # pylint: disable=no-member
-                "type", "producer", "concentration", "unit", "purity_quality"
+                "type", "producer", "concentration", "unit", "purity_quality", "safety_data_sheet", "safety_instruction"
             ).defer(
                 "type__is_validated_by_admin",
                 "producer__producer_name",
@@ -362,6 +406,12 @@ class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
                 "concentration__is_validated_by_admin",
                 "unit__is_validated_by_admin",
                 "purity_quality__is_validated_by_admin",
+                "safety_data_sheet__safety_data_sheet",
+                "safety_data_sheet__reagent_name",
+                "safety_data_sheet__is_validated_by_admin",
+                "safety_instruction__safety_instruction",
+                "safety_instruction__reagent_name",
+                "safety_instruction__is_validated_by_admin",
             )
 
         return super().get_queryset()
@@ -376,12 +426,6 @@ class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
         if self.action in ("update", "partial_update"):
             return serializers.ReagentModifySerializer
 
-        if self.action == "get_safety_instructions":
-            return serializers.SafetyInstructionSerializer
-
-        if self.action == "get_safety_instruction":
-            return serializers.SafetyInstructionDetailSerializer
-
         return super().get_serializer_class()
 
     @action_paginate(
@@ -392,24 +436,6 @@ class ReagentViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
     def get_historical_records(self, request):
         history = self.filter_queryset(self.get_queryset().order_by("-history_id"))
         return history
-
-    @action_paginate(
-        detail=False,
-        url_path="safety-instructions",
-        filterset_class=None,
-    )
-    def get_safety_instructions(self, request):
-        safety_instructions = self.filter_queryset(self.get_queryset().values("id", "name", "producer__abbreviation"))
-        return safety_instructions
-
-    @action(
-        detail=True,
-        url_path="safety-instructions",
-    )
-    def get_safety_instruction(self, request, pk=None):
-        safety_instruction = self.get_queryset().values("id", "safety_instruction").get(pk=pk)
-        serializer = self.get_serializer(safety_instruction)
-        return Response(serializer.data)
 
 
 class ProjectProcedureViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagination):
@@ -882,6 +908,8 @@ class NotificationViewSet(ReadOnlyModelViewSetWithOptionalPagination):
             models.Unit,
             models.PurityQuality,
             models.StorageCondition,
+            models.SafetyDataSheet,
+            models.SafetyInstruction,
             models.Reagent,
         ]
 

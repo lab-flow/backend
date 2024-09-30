@@ -398,6 +398,78 @@ class PrecautionaryStatementHistoricalRecordsSerializer(serializers.ModelSeriali
         exclude = ["history_id"]
 
 
+class SafetyDataSheetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SafetyDataSheet
+        fields = "__all__"
+
+
+class SafetyDataSheetCreateAsAdminSerializer(serializers.ModelSerializer):
+    is_validated_by_admin = serializers.HiddenField(default=True)
+
+    class Meta:
+        model = models.SafetyDataSheet
+        fields = "__all__"
+
+
+class SafetyDataSheetCreateWithLabRoleSerializer(serializers.ModelSerializer):
+    is_validated_by_admin = serializers.HiddenField(default=False)
+
+    class Meta:
+        model = models.SafetyDataSheet
+        fields = "__all__"
+
+
+class SafetyDataSheetHistoricalRecordsSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="history_id", read_only=True)
+    pk = serializers.IntegerField(source="id", read_only=True)
+    safety_data_sheet = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.SafetyDataSheet.history.model  # pylint: disable=no-member
+        exclude = ["history_id"]
+
+    def get_safety_data_sheet(self, obj):
+        request = self.context["request"]
+        return request.build_absolute_uri(default_storage.url(obj.safety_data_sheet))
+
+
+class SafetyInstructionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = models.SafetyInstruction
+        fields = "__all__"
+
+
+class SafetyInstructionCreateAsAdminSerializer(serializers.ModelSerializer):
+    is_validated_by_admin = serializers.HiddenField(default=True)
+
+    class Meta:
+        model = models.SafetyInstruction
+        fields = "__all__"
+
+
+class SafetyInstructionCreateWithLabRoleSerializer(serializers.ModelSerializer):
+    is_validated_by_admin = serializers.HiddenField(default=False)
+
+    class Meta:
+        model = models.SafetyInstruction
+        fields = "__all__"
+
+
+class SafetyInstructionHistoricalRecordsSerializer(serializers.ModelSerializer):
+    id = serializers.IntegerField(source="history_id", read_only=True)
+    pk = serializers.IntegerField(source="id", read_only=True)
+    safety_instruction = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.SafetyInstruction.history.model  # pylint: disable=no-member
+        exclude = ["history_id"]
+
+    def get_safety_instruction(self, obj):
+        request = self.context["request"]
+        return request.build_absolute_uri(default_storage.url(obj.safety_instruction))
+
+
 class ReagentFieldProducerSerializer(serializers.ModelSerializer):
     repr = serializers.CharField(source="abbreviation", read_only=True)
 
@@ -462,6 +534,22 @@ class ReagentFieldPrecautionaryStatementSerializer(serializers.ModelSerializer):
         fields = ["id", "repr"]
 
 
+class ReagentFieldSafetyDataSheetSerializer(serializers.ModelSerializer):
+    repr = serializers.CharField(source="name", read_only=True)
+
+    class Meta:
+        model = models.SafetyDataSheet
+        fields = ["id", "repr"]
+
+
+class ReagentFieldSafetyInstructionSerializer(serializers.ModelSerializer):
+    repr = serializers.CharField(source="name", read_only=True)
+
+    class Meta:
+        model = models.SafetyInstruction
+        fields = ["id", "repr"]
+
+
 class ReagentReadSerializer(serializers.ModelSerializer):
     type = ReagentFieldReagentTypeSerializer(read_only=True)
     producer = ReagentFieldProducerSerializer(read_only=True)
@@ -471,6 +559,8 @@ class ReagentReadSerializer(serializers.ModelSerializer):
     storage_conditions = ReagentFieldStorageConditionSerializer(read_only=True, many=True)
     hazard_statements = ReagentFieldHazardStatementReadSerializer(read_only=True, many=True)
     precautionary_statements = ReagentFieldPrecautionaryStatementSerializer(read_only=True, many=True)
+    safety_data_sheet = ReagentFieldSafetyDataSheetSerializer(read_only=True)
+    safety_instruction = ReagentFieldSafetyInstructionSerializer(read_only=True)
 
     class Meta:
         model = models.Reagent
@@ -520,21 +610,6 @@ class ReagentCreateWithLabRoleSerializer(ReagentModifySerializer):
 
     class Meta(ReagentModifySerializer.Meta):
         pass
-
-
-class SafetyInstructionSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    reagent_name = serializers.CharField(source="name", read_only=True)
-    producer = serializers.CharField(source="producer__abbreviation", read_only=True)
-
-
-class SafetyInstructionDetailSerializer(serializers.Serializer):
-    id = serializers.IntegerField(read_only=True)
-    safety_instruction = serializers.SerializerMethodField()
-
-    def get_safety_instruction(self, obj):
-        request = self.context["request"]
-        return request.build_absolute_uri(default_storage.url(obj["safety_instruction"]))
 
 
 class ReagentHistoricalRecordsSerializer(ReagentReadSerializer):

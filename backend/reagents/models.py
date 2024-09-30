@@ -160,7 +160,7 @@ class Pictogram(models.Model):
 
 class HazardStatement(models.Model):
     hazard_class = models.CharField(max_length=100)
-    clp_classification = models.ForeignKey(ClpClassification, on_delete=models.PROTECT)
+    clp_classification = models.ForeignKey(ClpClassification, on_delete=models.PROTECT, null=True, blank=True)
     pictogram = models.ForeignKey(Pictogram, on_delete=models.PROTECT, null=True, blank=True)
     hazard_category = models.CharField(max_length=50)
     hazard_and_category_code = models.CharField(max_length=30)

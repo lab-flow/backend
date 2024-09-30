@@ -349,6 +349,19 @@ class HazardStatementWriteSerializer(serializers.ModelSerializer):
         model = models.HazardStatement
         fields = "__all__"
 
+    def validate(self, attrs):
+        """Check that:
+            1. The CLP classification isn't empty when the code starts with "H".
+        """
+        code = get_attr_value_for_validation(self, attrs, "code")
+        clp_classification = get_attr_value_for_validation(self, attrs, "clp_classification")
+
+        if code.startswith("H") and clp_classification is None:
+            raise serializers.ValidationError(
+                detail={"clp_classification": "Klasyfikcja CLP jest wymagana w przypadku kodów H."}
+            )
+        return attrs
+
 
 class HazardStatementGhsPictogramsSerializer(serializers.Serializer):
     id = serializers.IntegerField(source="clp_classification_id", read_only=True)

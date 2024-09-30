@@ -330,6 +330,7 @@ def generate_all_personal_reagents_report_data(personal_reagents_queryset):
         "Klasyfikacja CLP",
         "Data przyjęcia/\n"
         "zakupu",
+        "Data otwarcia",
         "Data ważności",
         "Data zużycia/\n"
         "utylizacji",
@@ -366,6 +367,7 @@ def generate_all_personal_reagents_report_data(personal_reagents_queryset):
             "Tak" if personal_reagent.is_critical else "Nie",
             clp_classifications,
             personal_reagent.receipt_purchase_date,
+            personal_reagent.opening_date,
             personal_reagent.expiration_date,
             personal_reagent.disposal_utilization_date,
             personal_reagent.laboratory.laboratory,
@@ -401,6 +403,7 @@ def generate_personal_view_report_data(personal_reagents_queryset):
         "Ostrzeżenie",
         "Data przyjęcia/\n"
         "zakupu",
+        "Data otwarcia",
         "Data ważności",
         "Data zużycia/\n"
         "utylizacji",
@@ -456,6 +459,7 @@ def generate_personal_view_report_data(personal_reagents_queryset):
             clp_classifications,
             signal_word,
             personal_reagent.receipt_purchase_date,
+            personal_reagent.opening_date,
             personal_reagent.expiration_date,
             personal_reagent.disposal_utilization_date,
             personal_reagent.laboratory.laboratory,

@@ -837,10 +837,13 @@ class PersonalReagentCreateAsAdminSerializer(serializers.ModelSerializer):
         """Check that:
             1. When the main owner wants to add a personal reagent to a project/procedure, they must belong to it.
             2. Detailed location is present if the project/procedure name starts with "PB".
+            3. If the opening date is present, it's not before the receipt/purchase date.
         """
         project_procedure = get_attr_value_for_validation(self, attrs, "project_procedure")
         main_owner = get_attr_value_for_validation(self, attrs, "main_owner")
         detailed_location = get_attr_value_for_validation(self, attrs, "detailed_location")
+        receipt_purchase_date = get_attr_value_for_validation(self, attrs, "receipt_purchase_date")
+        opening_date = get_attr_value_for_validation(self, attrs, "opening_date")
 
         if project_procedure is not None:
             if main_owner not in project_procedure.workers.all():
@@ -853,6 +856,12 @@ class PersonalReagentCreateAsAdminSerializer(serializers.ModelSerializer):
                     "detailed_location": "Lokalizacja szczegółowa jest wymagana dla odczynników, "
                                          "które przypisane są do procedur badawczych, których nazwa zaczyna się na PB."
                 })
+
+        if opening_date is not None and opening_date < receipt_purchase_date:
+                raise serializers.ValidationError(detail={
+                    "opening_date": "Data otwarcia nie może być wcześniejsza niż data zakupu odczynnika."
+                })
+
         return attrs
 
 

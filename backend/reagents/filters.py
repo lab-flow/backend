@@ -49,6 +49,10 @@ class PersonalReagentFilter(filters.FilterSet):
     receipt_purchase_date_lte = filters.DateFilter(field_name="receipt_purchase_date", lookup_expr="lte")
     receipt_purchase_date_gt = filters.DateFilter(field_name="receipt_purchase_date", lookup_expr="gt")
     receipt_purchase_date_gte = filters.DateFilter(field_name="receipt_purchase_date", lookup_expr="gte")
+    opening_date_lt = filters.DateFilter(field_name="opening_date", lookup_expr="lt")
+    opening_date_lte = filters.DateFilter(field_name="opening_date", lookup_expr="lte")
+    opening_date_gt = filters.DateFilter(field_name="opening_date", lookup_expr="gt")
+    opening_date_gte = filters.DateFilter(field_name="opening_date", lookup_expr="gte")
     expiration_date_lt = filters.DateFilter(field_name="expiration_date", lookup_expr="lt")
     expiration_date_lte = filters.DateFilter(field_name="expiration_date", lookup_expr="lte")
     expiration_date_gt = filters.DateFilter(field_name="expiration_date", lookup_expr="gt")
@@ -67,6 +71,7 @@ class PersonalReagentFilter(filters.FilterSet):
             ("reagent__catalog_no", "catalog_no"),
             ("lot_no", "lot_no"),
             ("receipt_purchase_date", "receipt_purchase_date"),
+            ("opening_date", "opening_date"),
             ("expiration_date", "expiration_date"),
             ("disposal_utilization_date", "disposal_utilization_date"),
             ("room", "room"),
@@ -79,6 +84,7 @@ class PersonalReagentFilter(filters.FilterSet):
         fields = [
             "is_critical",
             "receipt_purchase_date",
+            "opening_date",
             "expiration_date",
             "disposal_utilization_date",
             "is_usage_record_generated",

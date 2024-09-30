@@ -308,6 +308,7 @@ class PersonalReagent(models.Model):
     main_owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     lot_no = models.CharField(max_length=20)
     receipt_purchase_date = models.DateField()
+    opening_date = models.DateField(null=True, blank=True, default=None)
     expiration_date = models.DateField()
     disposal_utilization_date = models.DateField(null=True, blank=True, default=None)
     laboratory = models.ForeignKey(Laboratory, on_delete=models.PROTECT)

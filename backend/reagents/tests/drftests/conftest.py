@@ -237,6 +237,44 @@ def concentrations():
 
 
 @pytest.fixture
+def safety_instructions(mock_files):  # pylint: disable=redefined-outer-name
+    _, pdf_bytes = mock_files
+    safety_instruction1 = models.SafetyInstruction.objects.create(
+        safety_instruction=SimpleUploadedFile("si1.pdf", pdf_bytes),
+        name="SI0001",
+        reagent_name="alkohol",
+        is_validated_by_admin=True,
+    )
+    safety_instruction2 = models.SafetyInstruction.objects.create(
+        safety_instruction=SimpleUploadedFile("si2.pdf", pdf_bytes),
+        name="SI0002",
+        reagent_name="Decontaminant",
+        is_validated_by_admin=True,
+    )
+
+    return safety_instruction1, safety_instruction2
+
+
+@pytest.fixture
+def safety_data_sheets(mock_files):  # pylint: disable=redefined-outer-name
+    _, pdf_bytes = mock_files
+    safety_data_sheet1 = models.SafetyDataSheet.objects.create(
+        safety_data_sheet=SimpleUploadedFile("sds1.pdf", pdf_bytes),
+        name="SDS0001",
+        reagent_name="alkohol",
+        is_validated_by_admin=True,
+    )
+    safety_data_sheet2 = models.SafetyDataSheet.objects.create(
+        safety_data_sheet=SimpleUploadedFile("sds2.pdf", pdf_bytes),
+        name="SDS0002",
+        reagent_name="Decontaminant",
+        is_validated_by_admin=True,
+    )
+
+    return safety_data_sheet1, safety_data_sheet2
+
+
+@pytest.fixture
 def units():
     unit1 = models.Unit.objects.create(
         unit="preps",
@@ -355,12 +393,14 @@ def precautionary_statements():
 
 @pytest.fixture
 # pylint: disable=redefined-outer-name
-def reagents(reagent_types, producers, concentrations, units, purities_qualities, storage_conditions, hazard_statements,
-             precautionary_statements, mock_files):  # pylint: disable=redefined-outer-name
+def reagents(reagent_types, producers, concentrations, safety_instructions, safety_data_sheets, units,
+             purities_qualities, storage_conditions, hazard_statements, precautionary_statements):
 # pylint: enable=redefined-outer-name
-    _, pdf_bytes = mock_files
     type1, type2, _ = reagent_types
     producer1, producer2 = producers
+    concentration1, _ = concentrations
+    safety_instruction1, safety_instruction2 = safety_instructions
+    safety_data_sheet1, safety_data_sheet2 = safety_data_sheets
     concentration1, _ = concentrations
     unit1, unit2 = units
     purity_quality1, _ = purities_qualities
@@ -377,10 +417,8 @@ def reagents(reagent_types, producers, concentrations, units, purities_qualities
         volume=1,
         unit=unit1,
         purity_quality=purity_quality1,
-        safety_instruction=SimpleUploadedFile("si1.pdf", pdf_bytes),
-        safety_instruction_name="IB0001",
-        safety_data_sheet=SimpleUploadedFile("sds1.pdf", pdf_bytes),
-        safety_data_sheet_name="SDS0001",
+        safety_instruction=safety_instruction1,
+        safety_data_sheet=safety_data_sheet1,
         is_usage_record_required=True,
         is_validated_by_admin=True,
     )
@@ -395,10 +433,8 @@ def reagents(reagent_types, producers, concentrations, units, purities_qualities
         catalog_no="7010PK",
         volume=1,
         unit=unit2,
-        safety_instruction=SimpleUploadedFile("si2.pdf", pdf_bytes),
-        safety_instruction_name="IB0002",
-        safety_data_sheet=SimpleUploadedFile("sds2.pdf", pdf_bytes),
-        safety_data_sheet_name="SDS0002",
+        safety_instruction=safety_instruction2,
+        safety_data_sheet=safety_data_sheet2,
         is_usage_record_required=False,
         is_validated_by_admin=False,
     )
@@ -467,6 +503,7 @@ def personal_reagents(api_client_admin, api_client_lab_manager, api_client_lab_w
         main_owner=lab_worker,
         lot_no="2000/02/03",
         receipt_purchase_date=mock_datetime_date_today,
+        opening_date=mock_datetime_date_today + datetime.timedelta(days=1),
         expiration_date=mock_datetime_date_today + datetime.timedelta(days=3),
         laboratory=laboratory1,
         room="315",

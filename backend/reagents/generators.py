@@ -232,7 +232,7 @@ def generate_sanepid_pip_report_data(personal_reagents_queryset):
             personal_reagent.main_owner,
             personal_reagent.receipt_purchase_date,
             clp_classifications,
-            personal_reagent.reagent.safety_instruction_name,
+            personal_reagent.reagent.safety_instruction.name,
         ])
 
     return report_data
@@ -268,7 +268,7 @@ def generate_lab_manager_report_data(personal_reagents_queryset):
             personal_reagent.receipt_purchase_date,
             personal_reagent.expiration_date,
             clp_classifications,
-            reagent.safety_instruction_name,
+            reagent.safety_instruction.name,
             reagent.type,
         ])
 

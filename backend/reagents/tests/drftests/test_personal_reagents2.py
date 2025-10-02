@@ -192,6 +192,7 @@ def test_retrieve_personal_reagents(api_client_admin, api_client_lab_manager, ap
         "is_critical": True,
         "lot_no": "2000/02/03",
         "receipt_purchase_date": mock_datetime_date_today.isoformat(),
+        "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)).isoformat(),
         "user_comment": "Bardzo ważny odczynnik.",
         "is_usage_record_required": True,
         "is_usage_record_generated": False,
@@ -480,6 +481,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "main_owner": lab_manager.id,
         "lot_no": "2000/02/03",
         "receipt_purchase_date": mock_datetime_date_today,
+        "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=3)),
         "laboratory": laboratory1.id,
         "room": "315",
@@ -490,6 +492,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
 
     personal_reagent1_id = response.data["id"]
     put_data["project_procedure"] = personal_reagent1.project_procedure.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -519,6 +522,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
             "repr": lab_manager.username,
         },
         "receipt_purchase_date": put_data["receipt_purchase_date"].isoformat(),
+        "opening_date": put_data["opening_date"].isoformat(),
         "expiration_date": put_data["expiration_date"].isoformat(),
     }
 
@@ -556,6 +560,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = personal_reagent1.project_procedure.id
     put_data["main_owner"] = lab_manager.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -627,6 +632,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
 
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = None
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -655,6 +661,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = None
     put_data["main_owner"] = project_manager.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -701,6 +708,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = None
     put_data["main_owner"] = lab_worker.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -728,6 +736,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = None
     put_data["main_owner"] = lab_worker.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = None
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -756,6 +765,7 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
     put_data["id"] = personal_reagent1_id
     put_data["project_procedure"] = None
     put_data["main_owner"] = lab_worker.id
+    put_data["opening_date"] = personal_reagent1.opening_date
     put_data["disposal_utilization_date"] = mock_datetime_date_today
     put_data["detailed_location"] = personal_reagent1.detailed_location
     put_data["is_usage_record_generated"] = False
@@ -780,6 +790,24 @@ def test_update_personal_reagents(api_client_admin, api_client_lab_manager, api_
         "main_owner": admin.id,
         "lot_no": "2024/01/23",
         "receipt_purchase_date": mock_datetime_date_today,
+        "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
+        "laboratory": laboratory2.id,
+        "room": "316",
+    }
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Opening date cannot be before the receipt/purchase date
+    client, admin = api_client_admin
+
+    put_data = {
+        "reagent": reagent1.id,
+        "is_critical": False,
+        "main_owner": admin.id,
+        "lot_no": "2024/01/23",
+        "receipt_purchase_date": mock_datetime_date_today,
+        "opening_date": (mock_datetime_date_today - datetime.timedelta(days=2)),
         "expiration_date": (mock_datetime_date_today + datetime.timedelta(days=2222)),
         "laboratory": laboratory2.id,
         "room": "316",
@@ -1027,6 +1055,7 @@ def test_partial_update_personal_reagents(api_client_admin, api_client_lab_manag
         },
         "lot_no": "2000/02/03",
         "receipt_purchase_date": personal_reagent1.receipt_purchase_date.isoformat(),
+        "opening_date": personal_reagent1.opening_date.isoformat(),
         "expiration_date": personal_reagent1.expiration_date.isoformat(),
         "disposal_utilization_date": None,
         "laboratory": {
@@ -1251,6 +1280,7 @@ def test_delete_personal_reagents(api_client_admin, api_client_lab_manager, api_
         },
         "lot_no": "2000/02/03",
         "receipt_purchase_date": personal_reagent1.receipt_purchase_date.isoformat(),
+        "opening_date": personal_reagent1.opening_date.isoformat(),
         "expiration_date": personal_reagent1.expiration_date.isoformat(),
         "disposal_utilization_date": None,
         "laboratory": {
@@ -1634,6 +1664,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": True,
             "lot_no": "4000/01/30",
             "receipt_purchase_date": (mock_datetime_date_today - datetime.timedelta(days=15)).isoformat(),
+            "opening_date": None,
             "user_comment": "",
             "is_usage_record_required": False,
             "is_usage_record_generated": False,
@@ -1682,6 +1713,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": False,
             "lot_no": "1000/01/01",
             "receipt_purchase_date": (mock_datetime_date_today - datetime.timedelta(days=60)).isoformat(),
+            "opening_date": None,
             "user_comment": "Mało ważny odczynnik.",
             "is_usage_record_required": False,
             "is_usage_record_generated": False,
@@ -1746,6 +1778,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": True,
             "lot_no": "2000/02/03",
             "receipt_purchase_date": mock_datetime_date_today.isoformat(),
+            "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)).isoformat(),
             "user_comment": "Bardzo ważny odczynnik.",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -1786,6 +1819,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": False,
             "lot_no": "1000/01/01",
             "receipt_purchase_date": (mock_datetime_date_today - datetime.timedelta(days=30)).isoformat(),
+            "opening_date": None,
             "user_comment": "",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -1842,6 +1876,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": True,
             "lot_no": "2000/02/03",
             "receipt_purchase_date": mock_datetime_date_today.isoformat(),
+            "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)).isoformat(),
             "user_comment": "Bardzo ważny odczynnik.",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -1895,6 +1930,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": False,
             "lot_no": "1000/01/01",
             "receipt_purchase_date": (mock_datetime_date_today - datetime.timedelta(days=30)).isoformat(),
+            "opening_date": None,
             "user_comment": "",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -1938,6 +1974,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": True,
             "lot_no": "2000/02/03",
             "receipt_purchase_date": mock_datetime_date_today.isoformat(),
+            "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)).isoformat(),
             "user_comment": "Bardzo ważny odczynnik.",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -2006,6 +2043,7 @@ def test_get_personal_view(api_client_admin, api_client_lab_manager, api_client_
             "is_critical": True,
             "lot_no": "2000/02/03",
             "receipt_purchase_date": mock_datetime_date_today.isoformat(),
+            "opening_date": (mock_datetime_date_today + datetime.timedelta(days=1)).isoformat(),
             "user_comment": "Bardzo ważny odczynnik.",
             "is_usage_record_required": True,
             "is_usage_record_generated": False,
@@ -2112,6 +2150,7 @@ def test_generate_usage_record(api_client_admin, api_client_lab_manager, api_cli
         },
         "lot_no": "1000/01/01",
         "receipt_purchase_date": personal_reagent.receipt_purchase_date.isoformat(),
+        "opening_date": None,
         "expiration_date": personal_reagent.expiration_date.isoformat(),
         "disposal_utilization_date": None,
         "laboratory": {
@@ -2310,7 +2349,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             personal_reagent1.main_owner,
             personal_reagent1.receipt_purchase_date,
             personal_reagent1_clp_classifications,
-            reagent1.safety_instruction_name,
+            reagent1.safety_instruction.name,
         ],
         [
             2,
@@ -2321,7 +2360,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             personal_reagent2.main_owner,
             personal_reagent2.receipt_purchase_date,
             personal_reagent2_clp_classifications,
-            reagent2.safety_instruction_name,
+            reagent2.safety_instruction.name,
         ],
         [
             3,
@@ -2332,7 +2371,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             personal_reagent3.main_owner,
             personal_reagent3.receipt_purchase_date,
             personal_reagent3_clp_classifications,
-            reagent3.safety_instruction_name,
+            reagent3.safety_instruction.name,
         ],
         [
             4,
@@ -2343,7 +2382,7 @@ def test_generate_sanepid_pip_report_data(personal_reagents):
             personal_reagent4.main_owner,
             personal_reagent4.receipt_purchase_date,
             personal_reagent4_clp_classifications,
-            reagent4.safety_instruction_name,
+            reagent4.safety_instruction.name,
         ],
     ]
     actual = generators.generate_sanepid_pip_report_data(PersonalReagent.objects.all())
@@ -2468,7 +2507,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             personal_reagent1.receipt_purchase_date,
             personal_reagent1.expiration_date,
             personal_reagent1_clp_classifications,
-            reagent1.safety_instruction_name,
+            reagent1.safety_instruction.name,
             reagent1.type,
         ],
         [
@@ -2481,7 +2520,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             personal_reagent2.receipt_purchase_date,
             personal_reagent2.expiration_date,
             personal_reagent2_clp_classifications,
-            reagent2.safety_instruction_name,
+            reagent2.safety_instruction.name,
             reagent2.type,
         ],
         [
@@ -2494,7 +2533,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             personal_reagent3.receipt_purchase_date,
             personal_reagent3.expiration_date,
             personal_reagent3_clp_classifications,
-            reagent3.safety_instruction_name,
+            reagent3.safety_instruction.name,
             reagent3.type,
         ],
         [
@@ -2507,7 +2546,7 @@ def test_generate_lab_manager_report_data(personal_reagents):
             personal_reagent4.receipt_purchase_date,
             personal_reagent4.expiration_date,
             personal_reagent4_clp_classifications,
-            reagent4.safety_instruction_name,
+            reagent4.safety_instruction.name,
             reagent4.type,
         ],
     ]
@@ -2798,6 +2837,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             "Klasyfikacja CLP",
             "Data przyjęcia/\n"
             "zakupu",
+            "Data otwarcia",
             "Data ważności",
             "Data zużycia/\n"
             "utylizacji",
@@ -2824,6 +2864,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             "Tak",
             personal_reagent1_clp_classifications,
             personal_reagent1.receipt_purchase_date,
+            personal_reagent1.opening_date,
             personal_reagent1.expiration_date,
             personal_reagent1.disposal_utilization_date,
             personal_reagent1.laboratory.laboratory,
@@ -2844,6 +2885,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             "Nie",
             personal_reagent2_clp_classifications,
             personal_reagent2.receipt_purchase_date,
+            personal_reagent2.opening_date,
             personal_reagent2.expiration_date,
             personal_reagent2.disposal_utilization_date,
             personal_reagent2.laboratory.laboratory,
@@ -2864,6 +2906,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             "Tak",
             personal_reagent3_clp_classifications,
             personal_reagent3.receipt_purchase_date,
+            personal_reagent3.opening_date,
             personal_reagent3.expiration_date,
             personal_reagent3.disposal_utilization_date,
             personal_reagent3.laboratory.laboratory,
@@ -2884,6 +2927,7 @@ def test_generate_all_personal_reagents_report_data(personal_reagents):
             "Nie",
             personal_reagent4_clp_classifications,
             personal_reagent4.receipt_purchase_date,
+            personal_reagent4.opening_date,
             personal_reagent4.expiration_date,
             personal_reagent4.disposal_utilization_date,
             personal_reagent4.laboratory.laboratory,
@@ -3025,6 +3069,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             "Ostrzeżenie",
             "Data przyjęcia/\n"
             "zakupu",
+            "Data otwarcia",
             "Data ważności",
             "Data zużycia/\n"
             "utylizacji",
@@ -3057,6 +3102,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent1_clp_classifications,
             "DGR",
             personal_reagent1.receipt_purchase_date,
+            personal_reagent1.opening_date,
             personal_reagent1.expiration_date,
             personal_reagent1.disposal_utilization_date,
             personal_reagent1.laboratory.laboratory,
@@ -3081,6 +3127,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent2_clp_classifications,
             "DGR",
             personal_reagent2.receipt_purchase_date,
+            personal_reagent2.opening_date,
             personal_reagent2.expiration_date,
             personal_reagent2.disposal_utilization_date,
             personal_reagent2.laboratory.laboratory,
@@ -3105,6 +3152,7 @@ def test_generate_personal_view_report_data(personal_reagents):
             personal_reagent3_clp_classifications,
             "WRN",
             personal_reagent3.receipt_purchase_date,
+            personal_reagent3.opening_date,
             personal_reagent3.expiration_date,
             personal_reagent3.disposal_utilization_date,
             personal_reagent3.laboratory.laboratory,
@@ -3176,16 +3224,18 @@ def test_generate_personal_view_report(api_client_admin, api_client_lab_manager,
 
 @pytest.mark.django_db
 def test_generate_statistics(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                             api_client_lab_worker, api_client_anon, reagent_types, producers, units,
-                             storage_conditions, reagents, projects_procedures, laboratories, mock_files):
+                             api_client_lab_worker, api_client_anon, reagent_types, producers, safety_data_sheets,
+                             safety_instructions, units, storage_conditions, reagents, projects_procedures,
+                             laboratories):
     # Using personal reagents from the main test fixture wouldn't be enough to test this action thoroughly.
     # That's why we're going to create a lot more mock personal reagents for this method specifically.
     # We'll also reverse the usual order of users making requests based on their roles because admins get most of the
     # overall statistics.
-    _, pdf_bytes = mock_files
 
     reagent_type1, _, _ = reagent_types
     producer1, _ = producers
+    safety_instruction1, _ = safety_instructions
+    safety_data_sheet1, _ = safety_data_sheets
     unit1, _ = units
     storage_condition1, _ = storage_conditions
     reagent1, reagent2 = reagents
@@ -3991,8 +4041,6 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
     }
     actual = response.data
 
-    print(expected)
-    print(actual)
     assert expected == actual
 
     url = reverse("personal_reagents-list")
@@ -4056,9 +4104,8 @@ def test_generate_statistics(api_client_admin, api_client_lab_manager, api_clien
             "volume": 100,
             "unit": unit1.id,
             "storage_conditions": [storage_condition1.id],
-            "safety_instruction": SimpleUploadedFile(f"si{i}.pdf", pdf_bytes),
-            "safety_instruction_name": f"IB00{i}",
-            "safety_data_sheet": SimpleUploadedFile(f"sds{i}.pdf", pdf_bytes),
+            "safety_instruction": safety_instruction1.id,
+            "safety_data_sheet": safety_data_sheet1.id,
             "is_usage_record_required": True,
         }
         response = client.post(url, post_data, format="multipart")

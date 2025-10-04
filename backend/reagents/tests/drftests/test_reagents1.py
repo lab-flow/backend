@@ -9,14 +9,18 @@ from django.urls import reverse
 
 from rest_framework import status
 
-from reagents.models import Producer, ReagentType, Concentration, Unit, PurityQuality, StorageCondition, Reagent
+from reagents.models import (
+    Producer, ReagentType, Concentration, Unit, SafetyDataSheet, SafetyInstruction, PurityQuality, StorageCondition,
+    Reagent,
+)
 from reagents.tests.drftests.conftest import assert_timezone_now_gte_datetime, model_to_dict
 
 
 @pytest.mark.django_db
 def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager, api_client_lab_worker,
-                       api_client_anon, reagent_types, producers, concentrations, units, purities_qualities,
-                       storage_conditions, hazard_statements, precautionary_statements, reagents):
+                       api_client_anon, reagent_types, producers, concentrations, safety_data_sheets,
+                       safety_instructions, units, purities_qualities, storage_conditions, hazard_statements,
+                       precautionary_statements, reagents):
     # Reagent types
     reagent_type1, reagent_type2, reagent_type3 = reagent_types
 
@@ -1302,6 +1306,799 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    safety_data_sheet1, safety_data_sheet2 = safety_data_sheets
+
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-list")
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    # Dropping filenames because they get random suffixes
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Filtering
+    # `is_validated_by_admin`
+    url = f"{reverse('safetydatasheet-list')}?is_validated_by_admin=False"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = []
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    print(actual)
+    assert expected == actual
+
+    url = f"{reverse('safetydatasheet-list')}?is_validated_by_admin=True"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    url = f"{reverse('safetydatasheet-list')}?ordering=id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetydatasheet-list')}?ordering=-id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `name`
+    url = f"{reverse('safetydatasheet-list')}?ordering=name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetydatasheet-list')}?ordering=-name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `reagent_name`
+    url = f"{reverse('safetydatasheet-list')}?ordering=reagent_name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetydatasheet-list')}?ordering=-reagent_name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Searching
+    # `reagent_name`
+    url = f"{reverse('safetydatasheet-list')}?search=decon"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `name`
+    url = f"{reverse('safetydatasheet-list')}?search=0001"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    url = reverse("safetydatasheet-list")
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_data_sheet1.id,
+            "name": "SDS0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_data_sheet2.id,
+            "name": "SDS0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    # Safety instructions
+    safety_instruction1, safety_instruction2 = safety_instructions
+
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-list")
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    # Dropping filenames because they get random suffixes
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Filtering
+    # `is_validated_by_admin`
+    url = f"{reverse('safetyinstruction-list')}?is_validated_by_admin=False"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = []
+    actual = json.loads(json.dumps(response.data["results"]))
+
+    assert expected == actual
+
+    url = f"{reverse('safetyinstruction-list')}?is_validated_by_admin=True"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    url = f"{reverse('safetyinstruction-list')}?ordering=id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetyinstruction-list')}?ordering=-id"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `name`
+    url = f"{reverse('safetyinstruction-list')}?ordering=name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetyinstruction-list')}?ordering=-name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `reagent_name`
+    url = f"{reverse('safetyinstruction-list')}?ordering=reagent_name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    url = f"{reverse('safetyinstruction-list')}?ordering=-name"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # Searching
+    # `reagent_name`
+    url = f"{reverse('safetyinstruction-list')}?search=decon"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    # `name`
+    url = f"{reverse('safetyinstruction-list')}?search=0001"
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    url = reverse("safetyinstruction-list")
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = [
+        {
+            "id": safety_instruction1.id,
+            "name": "IB0001",
+            "reagent_name": "alkohol",
+            "is_validated_by_admin": True,
+        },
+        {
+            "id": safety_instruction2.id,
+            "name": "IB0002",
+            "reagent_name": "Decontaminant",
+            "is_validated_by_admin": True,
+        },
+    ]
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data["results"]
+
+    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
     # Reagents
     reagent1, reagent2 = reagents
     hazard_statement1, hazard_statement2 = hazard_statements
@@ -1365,8 +2162,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1405,8 +2208,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1415,26 +2224,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    # Dropping filenames because they get random suffixes
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1443,25 +2233,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1470,25 +2242,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1497,25 +2251,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1559,8 +2295,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1569,17 +2311,8 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
 
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1640,8 +2373,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1650,17 +2389,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1723,8 +2452,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1763,8 +2498,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1773,25 +2514,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1802,25 +2525,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1882,8 +2587,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1922,8 +2633,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -1932,25 +2649,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -1961,25 +2660,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2041,8 +2722,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2081,8 +2768,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2091,25 +2784,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2120,25 +2795,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2181,8 +2838,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2240,8 +2903,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2250,25 +2919,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2279,25 +2930,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2359,8 +2992,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2399,8 +3038,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2409,25 +3054,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2438,25 +3065,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2518,8 +3127,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2558,8 +3173,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2568,25 +3189,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2597,25 +3200,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
 
     expected.reverse()
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[1].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[1].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2678,8 +3263,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2688,17 +3279,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2741,8 +3322,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2751,17 +3338,8 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
 
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2804,8 +3382,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                 },
             ],
             "precautionary_statements": [],
-            "safety_instruction_name": "IB0002",
-            "safety_data_sheet_name": "SDS0002",
+            "safety_instruction": {
+                "id": safety_instruction2.id,
+                "repr": safety_instruction2.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet2.id,
+                "repr": safety_data_sheet2.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2814,17 +3398,8 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
 
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si2")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds2")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2886,8 +3461,14 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
                     "repr": precautionary_statement2.code,
                 },
             ],
-            "safety_instruction_name": "IB0001",
-            "safety_data_sheet_name": "SDS0001",
+            "safety_instruction": {
+                "id": safety_instruction1.id,
+                "repr": safety_instruction1.name,
+            },
+            "safety_data_sheet": {
+                "id": safety_data_sheet1.id,
+                "repr": safety_data_sheet1.name,
+            },
             "cas_no": "",
             "other_info": "",
             "kit_contents": "",
@@ -2896,17 +3477,7 @@ def test_list_reagents(api_client_admin, api_client_lab_manager, api_client_proj
         },
     ]
 
-    response_data_results = response.data["results"]
-
-    safety_instruction_filename = response_data_results[0].pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = response_data_results[0].pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data["results"]))
 
     assert expected == actual
 
@@ -2924,6 +3495,9 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     ReagentType.history.all().delete()
     Producer.history.all().delete()
     Concentration.history.all().delete()
+    Unit.history.all().delete()
+    SafetyDataSheet.history.all().delete()
+    SafetyInstruction.history.all().delete()
     Unit.history.all().delete()
     PurityQuality.history.all().delete()
     StorageCondition.history.all().delete()
@@ -3778,6 +4352,660 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    safety_data_sheets = ["sds1", "sds2"]
+
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-list")
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile(f"{safety_data_sheets[0]}.pdf", pdf_bytes),
+        "name": "SDS0001",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_data_sheet_id = response.data["id"]
+    db_safety_data_sheet1 = SafetyDataSheet.objects.get(pk=safety_data_sheet_id)
+    post_data["is_validated_by_admin"] = True
+    post_data.pop("safety_data_sheet")
+
+    history_data1 = post_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_safety_data_sheet1.id,
+    }
+
+    post_data["id"] = safety_data_sheet_id
+
+    db_safety_data_sheet_dict = model_to_dict(db_safety_data_sheet1)
+    safety_data_sheet_filename = str(db_safety_data_sheet_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert post_data == db_safety_data_sheet_dict
+
+    client, _ = api_client_lab_manager
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile(f"{safety_data_sheets[1]}.pdf", pdf_bytes),
+        "name": "SDS0002",
+        "reagent_name": "płyn",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_data_sheet_id = response.data["id"]
+    db_safety_data_sheet2 = SafetyDataSheet.objects.get(pk=safety_data_sheet_id)
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_data_sheet")
+
+    history_data2 = post_data | {
+        "history_user": lab_manager.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_safety_data_sheet2.id,
+    }
+
+    post_data["id"] = safety_data_sheet_id
+
+    db_safety_data_sheet_dict = model_to_dict(db_safety_data_sheet2)
+    safety_data_sheet_filename = str(db_safety_data_sheet_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds2")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert post_data == db_safety_data_sheet_dict
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # Check history
+    client, _ = api_client_admin
+
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2, history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, safety_data_sheets):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=-id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `name`
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, safety_data_sheets):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=-name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `reagent_name`
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=reagent_name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, safety_data_sheets):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?ordering=-reagent_name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # Searching
+    # `name`
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?search=0002")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `reagent_name`
+    response = client.get(f"{reverse('safetydatasheet-get-historical-records')}?search=pł")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_data_sheet in zip(actual, reversed(safety_data_sheets)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith(safety_data_sheet)
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile("sds3.pdf", pdf_bytes),
+        "name": "SDS0003",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_data_sheet_id = response.data["id"]
+    db_safety_data_sheet3 = SafetyDataSheet.objects.get(pk=safety_data_sheet_id)
+    post_data["id"] = safety_data_sheet_id
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_data_sheet")
+
+    db_safety_data_sheet_dict = model_to_dict(db_safety_data_sheet3)
+    safety_data_sheet_filename = str(db_safety_data_sheet_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds3")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert post_data == db_safety_data_sheet_dict
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile("sds4.pdf", pdf_bytes),
+        "name": "SDS0004",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_data_sheet_id = response.data["id"]
+    db_safety_data_sheet4 = SafetyDataSheet.objects.get(pk=safety_data_sheet_id)
+    post_data["id"] = safety_data_sheet_id
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_data_sheet")
+
+    db_safety_data_sheet_dict = model_to_dict(db_safety_data_sheet4)
+    safety_data_sheet_filename = str(db_safety_data_sheet_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds4")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert post_data == db_safety_data_sheet_dict
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile("sds5.pdf", pdf_bytes),
+        "name": "SDS0005",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-list")
+
+    post_data = {
+        "safety_data_sheet": SimpleUploadedFile(f"{safety_data_sheets[0]}.pdf", pdf_bytes),
+        "name": "SDS001",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Safety instructions
+    safety_instructions = ["si1", "si2"]
+
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-list")
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile(f"{safety_instructions[0]}.pdf", pdf_bytes),
+        "name": "IB0001",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_instruction_id = response.data["id"]
+    db_safety_instruction1 = SafetyInstruction.objects.get(pk=safety_instruction_id)
+    post_data["is_validated_by_admin"] = True
+    post_data.pop("safety_instruction")
+
+    history_data1 = post_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_safety_instruction1.id,
+    }
+
+    post_data["id"] = safety_instruction_id
+
+    db_safety_instruction_dict = model_to_dict(db_safety_instruction1)
+    safety_instruction_filename = str(db_safety_instruction_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    assert post_data == db_safety_instruction_dict
+
+    client, _ = api_client_lab_manager
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile(f"{safety_instructions[1]}.pdf", pdf_bytes),
+        "name": "IB0002",
+        "reagent_name": "płyn",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_instruction_id = response.data["id"]
+    db_safety_instruction2 = SafetyInstruction.objects.get(pk=safety_instruction_id)
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_instruction")
+
+    history_data2 = post_data | {
+        "history_user": lab_manager.id,
+        "history_change_reason": None,
+        "history_type": "+",
+        "pk": db_safety_instruction2.id,
+    }
+
+    post_data["id"] = safety_instruction_id
+
+    db_safety_instruction_dict = model_to_dict(db_safety_instruction2)
+    safety_instruction_filename = str(db_safety_instruction_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si2")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    assert post_data == db_safety_instruction_dict
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    # Check history
+    client, _ = api_client_admin
+
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2, history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # Ordering
+    # `id`
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, safety_instructions):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=-id")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `name`
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, safety_instructions):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=-name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `reagent_name`
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=reagent_name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1, history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, safety_instructions):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?ordering=-reagent_name")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected.reverse()
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # Searching
+    # `name`
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?search=0002")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    # `reagent_name`
+    response = client.get(f"{reverse('safetyinstruction-get-historical-records')}?search=pł")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data2]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row, safety_instruction in zip(actual, reversed(safety_instructions)):
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith(safety_instruction)
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile("si3.pdf", pdf_bytes),
+        "name": "IB0003",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_instruction_id = response.data["id"]
+    db_safety_instruction3 = SafetyInstruction.objects.get(pk=safety_instruction_id)
+    post_data["id"] = safety_instruction_id
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_instruction")
+
+    db_safety_instruction_dict = model_to_dict(db_safety_instruction3)
+    safety_instruction_filename = str(db_safety_instruction_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si3")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    assert post_data == db_safety_instruction_dict
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile("si4.pdf", pdf_bytes),
+        "name": "IB0004",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_201_CREATED
+
+    safety_instruction_id = response.data["id"]
+    db_safety_instruction4 = SafetyInstruction.objects.get(pk=safety_instruction_id)
+    post_data["id"] = safety_instruction_id
+    post_data["is_validated_by_admin"] = False
+    post_data.pop("safety_instruction")
+
+    db_safety_instruction_dict = model_to_dict(db_safety_instruction4)
+    safety_instruction_filename = str(db_safety_instruction_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si4")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    assert post_data == db_safety_instruction_dict
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile("si5.pdf", pdf_bytes),
+        "name": "IB0005",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-list")
+
+    post_data = {
+        "safety_instruction": SimpleUploadedFile(f"{safety_instructions[0]}.pdf", pdf_bytes),
+        "name": "Ib0001",
+        "reagent_name": "alko",
+    }
+    response = client.post(url, post_data, format="multipart")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     # Purities/Qualities
     client, _ = api_client_admin
     url = reverse("purityquality-list")
@@ -4164,7 +5392,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     url = reverse("reagent-list")
 
     safety_instructions = ["", "", "", "si4", "si4", "si4"]
-    safety_data_sheets = ["sds3", "sds3", "sds3", "sds4", "sds4", "sds4"]
+    safety_instructions = ["sds3", "sds3", "sds3", "sds4", "sds4", "sds4"]
 
     # Minimal dataset consisting of only required fields
     post_data = {
@@ -4175,10 +5403,10 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "volume": 100,
         "unit": db_unit1.id,
         "storage_conditions": [db_storage_condition1.id, db_storage_condition2.id],
-        "safety_data_sheet": SimpleUploadedFile(f"{safety_data_sheets[0]}.pdf", pdf_bytes),
+        "safety_data_sheet": db_safety_data_sheet1.id,
         "is_usage_record_required": True,
     }
-    response = client.post(url, post_data, format="multipart")
+    response = client.post(url, post_data)
 
     assert response.status_code == status.HTTP_201_CREATED
 
@@ -4189,13 +5417,10 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     post_data["purity_quality"] = None
     post_data["hazard_statements"] = []
     post_data["precautionary_statements"] = []
-    post_data["safety_instruction_name"] = ""
-    post_data["safety_data_sheet_name"] = ""
     post_data["cas_no"] = ""
     post_data["other_info"] = ""
     post_data["kit_contents"] = ""
     post_data["is_validated_by_admin"] = True
-    post_data.pop("safety_data_sheet")
 
     history_data2 = post_data | {
         "history_user": admin.id,
@@ -4215,6 +5440,11 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     history_data2["unit"] = {
         "id": db_unit1.id,
         "repr": db_unit1.unit,
+    }
+    history_data2["safety_instruction"] = None
+    history_data2["safety_data_sheet"] = {
+        "id": db_safety_data_sheet1.id,
+        "repr": db_safety_data_sheet1.name,
     }
     history_data2["purity_quality"] = None
     history_data2["storage_conditions"] = [
@@ -4236,11 +5466,6 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     post_data["id"] = reagent_id
     db_reagent_dict = model_to_dict(db_reagent)
 
-    safety_data_sheet_filename = str(db_reagent_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-    assert safety_data_sheet_filename.startswith(safety_data_sheets[0])
-    assert safety_data_sheet_filename.endswith(".pdf")
-
     assert not db_reagent_dict.pop("safety_instruction")
 
     assert post_data == db_reagent_dict
@@ -4259,10 +5484,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [db_storage_condition1.id],
         "hazard_statements": [hazard_statement2.id],
         "precautionary_statements": [],
-        "safety_instruction": SimpleUploadedFile(f"{safety_instructions[3]}.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0004",
-        "safety_data_sheet": SimpleUploadedFile(f"{safety_data_sheets[3]}.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0004",
+        "safety_instruction": db_safety_instruction2.id,
+        "safety_data_sheet": db_safety_data_sheet2.id,
         "cas_no": "109-70-6",
         "other_info": "ciecz",
         "kit_contents": "",
@@ -4276,8 +5499,6 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     db_reagent = Reagent.objects.get(pk=reagent_id)
 
     post_data["is_validated_by_admin"] = False
-    post_data.pop("safety_instruction")
-    post_data.pop("safety_data_sheet")
 
     history_data5 = post_data | {
         "history_user": lab_manager.id,
@@ -4305,6 +5526,14 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "id": db_purity_quality2.id,
         "repr": db_purity_quality2.purity_quality,
     }
+    history_data5["safety_instruction"] = {
+        "id": db_safety_instruction2.id,
+        "repr": db_safety_instruction2.name,
+    }
+    history_data5["safety_data_sheet"] = {
+        "id": db_safety_data_sheet2.id,
+        "repr": db_safety_data_sheet2.name,
+    }
     history_data5["storage_conditions"] = [
         {
             "id": db_storage_condition1.id,
@@ -4327,14 +5556,6 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     post_data["id"] = reagent_id
     db_reagent_dict = model_to_dict(db_reagent)
 
-    safety_instruction_filename = str(db_reagent_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = str(db_reagent_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith(safety_instructions[3])
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith(safety_data_sheets[3])
-    assert safety_data_sheet_filename.endswith(".pdf")
-
     assert post_data == db_reagent_dict
 
     # Check history
@@ -4351,17 +5572,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data5, history_data4, history_data3, history_data2, history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4374,7 +5585,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     reagent_history[0].delete()
     reagent_history[1].delete()
     safety_instructions = ["", "si4"]
-    safety_data_sheets = ["sds3", "sds4"]
+    safety_instructions = ["sds3", "sds4"]
 
     # Ordering
     # `id`
@@ -4386,17 +5597,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data1, history_data3]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4408,17 +5609,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4433,17 +5624,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data3, history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4455,17 +5636,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4480,17 +5651,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data3, history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4502,17 +5663,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4527,17 +5678,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data3, history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4549,17 +5690,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4572,19 +5703,9 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     assert response.status_code == status.HTTP_200_OK
 
-    expected = [history_data1, history_data3]
+    expected = [history_data3, history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4596,17 +5717,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4621,17 +5732,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data1, history_data3]
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4643,17 +5744,7 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected.reverse()
     actual = json.loads(json.dumps(response.data["results"]))
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, reversed(safety_instructions), reversed(safety_data_sheets)
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4670,18 +5761,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     expected = [history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
     safety_instructions = [""]
-    safety_data_sheets = ["sds3"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    safety_instructions = ["sds3"]
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4697,18 +5778,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     expected = [history_data3]
     actual = json.loads(json.dumps(response.data["results"]))
     safety_instructions = ["si4"]
-    safety_data_sheets = ["sds4"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    safety_instructions = ["sds4"]
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4724,18 +5795,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     expected = [history_data3]
     actual = json.loads(json.dumps(response.data["results"]))
     safety_instructions = ["si4"]
-    safety_data_sheets = ["sds4"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    safety_instructions = ["sds4"]
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4744,25 +5805,13 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     # `safety_instruction_name`
     client, _ = api_client_admin
 
-    response = client.get(f"{reverse('reagent-get-historical-records')}?search=IB0004")
+    response = client.get(f"{reverse('reagent-get-historical-records')}?search=IB0002")
 
     assert response.status_code == status.HTTP_200_OK
 
     expected = [history_data3]
     actual = json.loads(json.dumps(response.data["results"]))
-    safety_instructions = ["si4"]
-    safety_data_sheets = ["sds4"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -4782,10 +5831,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [db_storage_condition3.id],
         "hazard_statements": [hazard_statement1.id, hazard_statement2.id],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si5.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0005",
-        "safety_data_sheet": SimpleUploadedFile("sds5.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0005",
+        "safety_instruction": db_safety_instruction3.id,
+        "safety_data_sheet": db_safety_data_sheet3.id,
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -4800,18 +5847,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     post_data["id"] = reagent_id
     post_data["is_validated_by_admin"] = False
-    post_data.pop("safety_instruction")
-    post_data.pop("safety_data_sheet")
 
     db_reagent_dict = model_to_dict(db_reagent)
-
-    safety_instruction_filename = str(db_reagent_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = str(db_reagent_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si5")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds5")
-    assert safety_data_sheet_filename.endswith(".pdf")
 
     assert post_data == db_reagent_dict
 
@@ -4834,10 +5871,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [db_storage_condition1.id, db_storage_condition4.id],
         "hazard_statements": [],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si6.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0006",
-        "safety_data_sheet": SimpleUploadedFile("sds6.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0006",
+        "safety_instruction": db_safety_instruction4.id,
+        "safety_data_sheet": db_safety_data_sheet4.id,
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -4852,18 +5887,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     post_data["id"] = reagent_id
     post_data["is_validated_by_admin"] = False
-    post_data.pop("safety_instruction")
-    post_data.pop("safety_data_sheet")
 
     db_reagent_dict = model_to_dict(db_reagent)
-
-    safety_instruction_filename = str(db_reagent_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = str(db_reagent_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si6")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds6")
-    assert safety_data_sheet_filename.endswith(".pdf")
 
     assert post_data == db_reagent_dict
 
@@ -4886,10 +5911,8 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [db_storage_condition1.id, db_storage_condition4.id],
         "hazard_statements": [],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si7.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0007",
-        "safety_data_sheet": SimpleUploadedFile("sds7.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0007",
+        "safety_instruction": db_safety_instruction3.id,
+        "safety_data_sheet": db_safety_data_sheet3.id,
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -4921,66 +5944,12 @@ def test_create_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [db_storage_condition1.id, db_storage_condition4.id],
         "hazard_statements": [hazard_statement1.id],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si7.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0007",
-        "safety_data_sheet": SimpleUploadedFile("sds7.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0007",
+        "safety_instruction": db_safety_instruction3.id,
+        "safety_data_sheet": db_safety_data_sheet3.id,
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
         "is_usage_record_required": False,
-    }
-    response = client.post(url, post_data, format="multipart")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    # Wrong safety_instruction_name
-    post_data = {
-        "type": db_reagent_type.id,
-        "producer": db_producer4.id,
-        "name": "Rotiphorese 10x TBE Buffer",
-        "catalog_no": "3061.2",
-        "concentration": db_concentration4.id,
-        "volume": 1,
-        "unit": db_unit4.id,
-        "purity_quality": db_purity_quality4.id,
-        "storage_conditions": [db_storage_condition1.id, db_storage_condition4.id],
-        "hazard_statements": [hazard_statement1.id],
-        "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si7.pdf", pdf_bytes),
-        "safety_instruction_name": "IB7",
-        "safety_data_sheet": SimpleUploadedFile("sds7.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0007",
-        "cas_no": "",
-        "other_info": "",
-        "kit_contents": "",
-        "is_usage_record_required": True,
-    }
-    response = client.post(url, post_data, format="multipart")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    # Wrong safety_data_sheet_name
-    post_data = {
-        "type": db_reagent_type.id,
-        "producer": db_producer4.id,
-        "name": "Rotiphorese 10x TBE Buffer",
-        "catalog_no": "3061.2",
-        "concentration": db_concentration4.id,
-        "volume": 1,
-        "unit": db_unit4.id,
-        "purity_quality": db_purity_quality4.id,
-        "storage_conditions": [db_storage_condition1.id, db_storage_condition4.id],
-        "hazard_statements": [hazard_statement1.id],
-        "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si7.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0007",
-        "safety_data_sheet": SimpleUploadedFile("sds7.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS007",
-        "cas_no": "",
-        "other_info": "",
-        "kit_contents": "",
-        "is_usage_record_required": True,
     }
     response = client.post(url, post_data, format="multipart")
 

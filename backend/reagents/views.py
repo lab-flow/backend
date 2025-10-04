@@ -327,7 +327,8 @@ class SafetyDataSheetViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPaginat
     queryset = model.objects.order_by("id")
     serializer_class = serializers.SafetyDataSheetSerializer
     permission_classes = [permissions.ReagentFilePermission]
-    filter_backends = [OrderingFilter, SearchFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = ["is_validated_by_admin"]
     ordering_fields = ["id", "name", "reagent_name"]
     search_fields = ["name", "reagent_name"]
 
@@ -346,7 +347,8 @@ class SafetyInstructionViewSet(ModelViewSetWithHistoricalRecordsAndOptionalPagin
     queryset = model.objects.order_by("id")
     serializer_class = serializers.SafetyInstructionSerializer
     permission_classes = [permissions.ReagentFilePermission]
-    filter_backends = [OrderingFilter, SearchFilter]
+    filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
+    filterset_fields = ["is_validated_by_admin"]
     ordering_fields = ["id", "name", "reagent_name"]
     search_fields = ["name", "reagent_name"]
 

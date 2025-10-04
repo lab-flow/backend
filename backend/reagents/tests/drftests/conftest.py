@@ -241,13 +241,13 @@ def safety_instructions(mock_files):  # pylint: disable=redefined-outer-name
     _, pdf_bytes = mock_files
     safety_instruction1 = models.SafetyInstruction.objects.create(
         safety_instruction=SimpleUploadedFile("si1.pdf", pdf_bytes),
-        name="SI0001",
+        name="IB0001",
         reagent_name="alkohol",
         is_validated_by_admin=True,
     )
     safety_instruction2 = models.SafetyInstruction.objects.create(
         safety_instruction=SimpleUploadedFile("si2.pdf", pdf_bytes),
-        name="SI0002",
+        name="IB0002",
         reagent_name="Decontaminant",
         is_validated_by_admin=True,
     )

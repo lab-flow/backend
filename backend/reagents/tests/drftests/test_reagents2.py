@@ -9,14 +9,16 @@ from django.urls import reverse
 
 from rest_framework import status
 
-from reagents.models import Producer, ReagentType, Concentration, Unit, PurityQuality, StorageCondition, Reagent
+from reagents.models import (Producer, ReagentType, Concentration, Unit, SafetyDataSheet, SafetyInstruction,
+                             PurityQuality, StorageCondition, Reagent)
 from reagents.tests.drftests.conftest import assert_timezone_now_gte_datetime, model_to_dict
 
 
 @pytest.mark.django_db
 def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager, api_client_lab_worker,
-                           api_client_anon, reagent_types, producers, concentrations, units, purities_qualities,
-                           storage_conditions, hazard_statements, precautionary_statements, reagents):
+                           api_client_anon, reagent_types, producers, concentrations, units, safety_data_sheets,
+                           safety_instructions, purities_qualities, storage_conditions, hazard_statements,
+                           precautionary_statements, reagents):
     # Reagent types
     reagent_type1, _, _ = reagent_types
 
@@ -219,6 +221,172 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    safety_data_sheet1, _ = safety_data_sheets
+
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet1.id])
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_data_sheet_filename = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    expected = {
+        "id": safety_data_sheet1.id,
+        "name": "SDS0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": True,
+    }
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_data_sheet_filename = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_data_sheet_filename = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_data_sheet_filename = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_data_sheet_filename = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    # Safety instructions
+    safety_instruction1, _ = safety_instructions
+
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-detail", args=[safety_instruction1.id])
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_instruction_filename = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    expected = {
+        "id": safety_instruction1.id,
+        "name": "IB0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": True,
+    }
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_instruction_filename = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_project_manager
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_instruction_filename = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client, _ = api_client_lab_worker
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_instruction_filename = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
+    assert expected == actual
+
+    client = api_client_anon
+    response = client.get(url)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    response_data_results = response.data
+    safety_instruction_filename = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    actual = json.loads(json.dumps(response_data_results))
+
     # Purities/Qualities
     purity_quality1, _ = purities_qualities
 
@@ -351,6 +519,14 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
             "id": unit1.id,
             "repr": unit1.unit,
         },
+        "safety_instruction": {
+            "id": safety_instruction1.id,
+            "repr": safety_instruction1.name,
+        },
+        "safety_data_sheet": {
+            "id": safety_data_sheet1.id,
+            "repr": safety_data_sheet1.name,
+        },
         "purity_quality": {
             "id": purity_quality1.id,
             "repr": purity_quality1.purity_quality,
@@ -381,8 +557,6 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
                 "repr": precautionary_statement2.code,
             },
         ],
-        "safety_instruction_name": "IB0001",
-        "safety_data_sheet_name": "SDS0001",
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -390,17 +564,7 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
         "is_validated_by_admin": True,
     }
 
-    response_data_results = response.data
-
-    safety_instruction_name = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_name = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-    assert safety_data_sheet_name.startswith("sds1")
-    assert safety_data_sheet_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data))
 
     assert expected == actual
 
@@ -409,17 +573,7 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data
-
-    safety_instruction_name = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_name = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-    assert safety_data_sheet_name.startswith("sds1")
-    assert safety_data_sheet_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data))
 
     assert expected == actual
 
@@ -428,17 +582,7 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data
-
-    safety_instruction_name = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_name = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-    assert safety_data_sheet_name.startswith("sds1")
-    assert safety_data_sheet_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data))
 
     assert expected == actual
 
@@ -447,17 +591,7 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
 
     assert response.status_code == status.HTTP_200_OK
 
-    response_data_results = response.data
-
-    safety_instruction_name = response_data_results.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_name = response_data_results.pop("safety_data_sheet").rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-    assert safety_data_sheet_name.startswith("sds1")
-    assert safety_data_sheet_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data_results))
+    actual = json.loads(json.dumps(response.data))
 
     assert expected == actual
 
@@ -469,12 +603,16 @@ def test_retrieve_reagents(api_client_admin, api_client_lab_manager, api_client_
 
 @pytest.mark.django_db
 def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager, api_client_lab_worker,
-                         api_client_anon, reagent_types, producers, concentrations, units, purities_qualities,
-                         storage_conditions, hazard_statements, precautionary_statements, reagents, mock_files):
+                         api_client_anon, reagent_types, producers, concentrations, units, safety_data_sheets,
+                         safety_instructions, purities_qualities, storage_conditions, hazard_statements,
+                         precautionary_statements, reagents, mock_files):
     # pylint: disable=no-member
     ReagentType.history.all().delete()
     Producer.history.all().delete()
     Concentration.history.all().delete()
+    Unit.history.all().delete()
+    SafetyDataSheet.history.all().delete()
+    SafetyInstruction.history.all().delete()
     Unit.history.all().delete()
     PurityQuality.history.all().delete()
     StorageCondition.history.all().delete()
@@ -741,6 +879,192 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    safety_data_sheet1, _ = safety_data_sheets
+
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet1.id])
+
+    put_data = {
+        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
+        "name": "SDS0001",
+        "reagent_name": "alko",
+        "is_validated_by_admin": True,
+    }
+    response = client.put(url, put_data, format="multipart")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    db_safety_data_sheet = SafetyDataSheet.objects.get(pk=response.data["id"])
+    put_data.pop("safety_data_sheet")
+
+    history_data1 = put_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_safety_data_sheet.id,
+    }
+
+    put_data["id"] = safety_data_sheet1.id
+
+    db_safety_data_sheet_dict = model_to_dict(db_safety_data_sheet)
+
+    safety_data_sheet_filename = str(db_safety_data_sheet_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_data_sheet_filename.startswith("sds1")
+    assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert put_data == db_safety_data_sheet_dict
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith("sds1")
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet1.id])
+
+    put_data = {
+        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
+        "name": "SD0001",
+        "reagent_name": "alko",
+        "is_validated_by_admin": True,
+    }
+    response = client.put(url, put_data, format="multipart")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Safety instructions
+    safety_instruction1, _ = safety_instructions
+
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-detail", args=[safety_instruction1.id])
+
+    put_data = {
+        "safety_instruction": SimpleUploadedFile("si1.pdf", pdf_bytes),
+        "name": "IB0001",
+        "reagent_name": "alko",
+        "is_validated_by_admin": True,
+    }
+    response = client.put(url, put_data, format="multipart")
+
+    assert response.status_code == status.HTTP_200_OK
+
+    db_safety_instruction = SafetyInstruction.objects.get(pk=response.data["id"])
+    put_data.pop("safety_instruction")
+
+    history_data1 = put_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_safety_instruction.id,
+    }
+
+    put_data["id"] = safety_data_sheet1.id
+
+    db_safety_instruction_dict = model_to_dict(db_safety_instruction)
+
+    safety_instruction_filename = str(db_safety_instruction_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+    assert safety_instruction_filename.startswith("si1")
+    assert safety_instruction_filename.endswith(".pdf")
+
+    assert put_data == db_safety_instruction_dict
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith("si1")
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.put(url, put_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-detail", args=[safety_instruction1.id])
+
+    put_data = {
+        "safety_instruction": SimpleUploadedFile("si1.pdf", pdf_bytes),
+        "name": "IB00001",
+        "reagent_name": "alko",
+        "is_validated_by_admin": True,
+    }
+    response = client.put(url, put_data, format="multipart")
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     # Purities/Qualities
     purity_quality1, _ = purities_qualities
 
@@ -887,11 +1211,11 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [storage_condition1.id],
         "hazard_statements": [hazard_statement1.id, hazard_statement2.id],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
+        "safety_data_sheet": safety_data_sheet1.id,
         "is_usage_record_required": True,
         "is_validated_by_admin": True,
     }
-    response = client.put(url, put_data, format="multipart")
+    response = client.put(url, put_data)
 
     assert response.status_code == status.HTTP_200_OK
 
@@ -899,13 +1223,11 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     put_data["concentration"] = reagent1.concentration.id
     put_data["purity_quality"] = reagent1.purity_quality.id
-    put_data["safety_instruction_name"] = reagent1.safety_instruction_name
-    put_data["safety_data_sheet_name"] = reagent1.safety_data_sheet_name
+    put_data["safety_instruction"] = reagent1.safety_instruction.id
+    put_data["safety_data_sheet"] = reagent1.safety_data_sheet.id
     put_data["cas_no"] = reagent1.cas_no
     put_data["other_info"] = reagent1.other_info
     put_data["kit_contents"] = reagent1.kit_contents
-    # Dropping files due to random suffixes
-    put_data.pop("safety_data_sheet")
 
     history_data1 = put_data | {
         "history_user": admin.id,
@@ -928,6 +1250,14 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     history_data1["unit"] = {
         "id": db_unit.id,
         "repr": db_unit.unit,
+    }
+    history_data1["safety_instruction"] = {
+        "id": db_safety_instruction.id,
+        "repr": db_safety_instruction.name,
+    }
+    history_data1["safety_data_sheet"] = {
+        "id": db_safety_data_sheet.id,
+        "repr": db_safety_data_sheet.name,
     }
     history_data1["purity_quality"] = {
         "id": db_purity_quality.id,
@@ -962,16 +1292,7 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     put_data["id"] = reagent1.id
 
-    db_reagent_dict = model_to_dict(db_reagent)
-    safety_instruction_filename = str(db_reagent_dict.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-    safety_data_sheet_filename = str(db_reagent_dict.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-    assert safety_instruction_filename.startswith("si1")
-    assert safety_instruction_filename.endswith(".pdf")
-    assert safety_data_sheet_filename.startswith("sds1")
-    assert safety_data_sheet_filename.endswith(".pdf")
-
-    assert put_data == db_reagent_dict
+    assert put_data == model_to_dict(db_reagent)
 
     # Check history
     response = client.get(reverse("reagent-get-historical-records"))
@@ -980,19 +1301,7 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    safety_instructions = [""]
-    safety_data_sheets = ["sds1"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -1023,6 +1332,7 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     # `is_usage_record_required` can't set to False when any of the hazard statements requires it to be set to True
+    # unless it's an admin making the request
     hazard_statement1.is_usage_record_required = True
     hazard_statement1.save()
 
@@ -1038,71 +1348,41 @@ def test_update_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [storage_condition1.id],
         "hazard_statements": [hazard_statement1.id, hazard_statement2.id],
         "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si1.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0001",
-        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0001",
+        "safety_instruction": safety_instruction1.id,
+        "safety_data_sheet": safety_data_sheet1.id,
         "is_usage_record_required": False,
         "is_validated_by_admin": True,
     }
     response = client.put(url, put_data, format="multipart")
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.status_code == status.HTTP_200_OK
 
-    # Wrong safety_instruction_name
-    put_data = {
-        "type": reagent_type1.id,
-        "producer": producer1.id,
-        "name": "alkohol etylowy bezwodny",
-        "catalog_no": "BA6480111",
-        "volume": 1,
-        "unit": unit1.id,
-        "storage_conditions": [storage_condition1.id],
-        "hazard_statements": [hazard_statement1.id, hazard_statement2.id],
-        "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si1.pdf", pdf_bytes),
-        "safety_instruction_name": "IB001",
-        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS0001",
-        "is_usage_record_required": False,
-        "is_validated_by_admin": True,
-    }
-    response = client.put(url, put_data, format="multipart")
+    db_reagent = Reagent.objects.get(pk=response.data["id"])
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    put_data["concentration"] = reagent1.concentration.id
+    put_data["purity_quality"] = reagent1.purity_quality.id
+    put_data["safety_instruction"] = reagent1.safety_instruction.id
+    put_data["safety_data_sheet"] = reagent1.safety_data_sheet.id
+    put_data["cas_no"] = reagent1.cas_no
+    put_data["other_info"] = reagent1.other_info
+    put_data["kit_contents"] = reagent1.kit_contents
+    put_data["id"] = reagent1.id
 
-    # Wrong safety_data_sheet_name
-    put_data = {
-        "type": reagent_type1.id,
-        "producer": producer1.id,
-        "name": "alkohol etylowy bezwodny",
-        "catalog_no": "BA6480111",
-        "volume": 1,
-        "unit": unit1.id,
-        "storage_conditions": [storage_condition1.id],
-        "hazard_statements": [hazard_statement1.id, hazard_statement2.id],
-        "precautionary_statements": [precautionary_statement1.id, precautionary_statement2.id],
-        "safety_instruction": SimpleUploadedFile("si1.pdf", pdf_bytes),
-        "safety_instruction_name": "IB0001",
-        "safety_data_sheet": SimpleUploadedFile("sds1.pdf", pdf_bytes),
-        "safety_data_sheet_name": "SDS123",
-        "is_usage_record_required": False,
-        "is_validated_by_admin": True,
-    }
-    response = client.put(url, put_data, format="multipart")
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert put_data == model_to_dict(db_reagent)
 
 
 @pytest.mark.django_db
 def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager,
                                  api_client_lab_worker, api_client_anon, reagent_types, producers, concentrations,
-                                 units, purities_qualities, storage_conditions, hazard_statements, reagents):
+                                 units, safety_data_sheets, safety_instructions, purities_qualities, storage_conditions,
+                                 hazard_statements, reagents):
     # pylint: disable=no-member
     ReagentType.history.all().delete()
     Producer.history.all().delete()
     Concentration.history.all().delete()
     Unit.history.all().delete()
+    SafetyDataSheet.history.all().delete()
+    SafetyInstruction.history.all().delete()
     PurityQuality.history.all().delete()
     StorageCondition.history.all().delete()
     Reagent.history.all().delete()
@@ -1377,6 +1657,172 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    safety_data_sheet1, safety_data_sheet2 = safety_data_sheets
+
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet1.id])
+
+    patch_data = {
+        "is_validated_by_admin": False,
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    db_safety_data_sheet1 = SafetyDataSheet.objects.get(pk=response.data["id"])
+
+    assert not db_safety_data_sheet1.is_validated_by_admin
+
+    history_data1 = patch_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_safety_data_sheet1.id,
+        "name": "SDS0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": False,
+    }
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith("sds1")
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    patch_data = {
+        "is_validated_by_admin": True,
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet1.id])
+
+    patch_data = {
+        "name": "0001",
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Safety instructions
+    safety_instruction1, safety_instruction2 = safety_instructions
+
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-detail", args=[safety_instruction1.id])
+
+    patch_data = {
+        "is_validated_by_admin": False,
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_200_OK
+
+    db_safety_instruction1 = SafetyInstruction.objects.get(pk=response.data["id"])
+
+    assert not db_safety_instruction1.is_validated_by_admin
+
+    history_data1 = patch_data | {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "~",
+        "pk": db_safety_instruction1.id,
+        "name": "IB0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": False,
+    }
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith("si1")
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    patch_data = {
+        "is_validated_by_admin": True,
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Wrong name
+    client, _ = api_client_admin
+    url = reverse("safetyinstruction-detail", args=[safety_instruction1.id])
+
+    patch_data = {
+        "name": "SI0001",
+    }
+    response = client.patch(url, patch_data)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
     # Purities/Qualities
     purity_quality1, _ = purities_qualities
 
@@ -1546,6 +1992,14 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
             "id": unit2.id,
             "repr": unit2.unit,
         },
+        "safety_instruction": {
+            "id": safety_instruction2.id,
+            "repr": safety_instruction2.name,
+        },
+        "safety_data_sheet": {
+            "id": safety_data_sheet2.id,
+            "repr": safety_data_sheet2.name,
+        },
         "purity_quality": None,
         "storage_conditions": [
             {
@@ -1560,8 +2014,6 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
             },
         ],
         "precautionary_statements": [],
-        "safety_instruction_name": "IB0002",
-        "safety_data_sheet_name": "SDS0002",
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -1576,19 +2028,7 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
 
     expected = [history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    safety_instructions = ["si2"]
-    safety_data_sheets = ["sds2"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -1622,6 +2062,7 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     # `is_usage_record_required` can't set to False when any of the hazard statements requires it to be set to True
+    # unless it's an admin making the request
     hazard_statement2 = reagent2.hazard_statements.all().first()
     hazard_statement2.is_usage_record_required = True
     hazard_statement2.save()
@@ -1633,34 +2074,22 @@ def test_partial_update_reagents(api_client_admin, api_client_lab_manager, api_c
     }
     response = client.patch(url, patch_data)
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert response.status_code == status.HTTP_200_OK
 
-    # Wrong safety_instruction_name
-    patch_data = {
-        "safety_instruction_name": "IB2",
-    }
-    response = client.patch(url, patch_data)
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-
-    # Wrong safety_data_sheet_name
-    patch_data = {
-        "safety_data_sheet_name": "SDS2",
-    }
-    response = client.patch(url, patch_data)
-
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
+    assert not db_reagent.is_usage_record_required
 
 
 @pytest.mark.django_db
 def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_project_manager, api_client_lab_worker,
-                         api_client_anon, reagent_types, producers, concentrations, units, purities_qualities,
-                         storage_conditions, reagents):
+                         api_client_anon, reagent_types, producers, concentrations, units, safety_data_sheets,
+                         safety_instructions, purities_qualities, storage_conditions, reagents):
     # pylint: disable=no-member
     ReagentType.history.all().delete()
     Producer.history.all().delete()
     Concentration.history.all().delete()
     Unit.history.all().delete()
+    SafetyDataSheet.history.all().delete()
+    SafetyInstruction.history.all().delete()
     PurityQuality.history.all().delete()
     StorageCondition.history.all().delete()
     Reagent.history.all().delete()
@@ -1708,6 +2137,28 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     unit_id = unit1.id
     url = reverse("unit-detail", args=[unit_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Safety data sheets
+    safety_data_sheet1, safety_data_sheet2 = safety_data_sheets
+
+    client, _ = api_client_admin
+
+    safety_data_sheet_id = safety_data_sheet1.id
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_400_BAD_REQUEST
+
+    # Safety instructions
+    safety_instruction1, safety_instruction2 = safety_instructions
+
+    client, _ = api_client_admin
+
+    safety_instruction_id = safety_instruction1.id
+    url = reverse("safetyinstruction-detail", args=[safety_instruction_id])
     response = client.delete(url)
 
     assert response.status_code == status.HTTP_400_BAD_REQUEST
@@ -1821,6 +2272,14 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
             "id": unit1.id,
             "repr": unit1.unit,
         },
+        "safety_instruction": {
+            "id": safety_instruction1.id,
+            "repr": safety_instruction1.name,
+        },
+        "safety_data_sheet": {
+            "id": safety_data_sheet1.id,
+            "repr": safety_data_sheet1.name,
+        },
         "purity_quality": {
             "id": purity_quality1.id,
             "repr": purity_quality1.purity_quality,
@@ -1828,8 +2287,6 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
         "storage_conditions": [],
         "hazard_statements": [],
         "precautionary_statements": [],
-        "safety_instruction_name": "IB0001",
-        "safety_data_sheet_name": "SDS0001",
         "cas_no": "",
         "other_info": "",
         "kit_contents": "",
@@ -1844,19 +2301,7 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     expected = [history_data1]
     actual = json.loads(json.dumps(response.data["results"]))
-    safety_instructions = ["si1"]
-    safety_data_sheets = ["sds1"]
-    for history_row, safety_instruction, safety_data_sheet in zip(
-        actual, safety_instructions, safety_data_sheets
-    ):
-        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
-        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
-
-        assert safety_instruction_filename.startswith(safety_instruction)
-        assert safety_instruction_filename.endswith(".pdf") or not safety_instruction_filename
-        assert safety_data_sheet_filename.startswith(safety_data_sheet)
-        assert safety_data_sheet_filename.endswith(".pdf")
-
+    for history_row in actual:
         int(history_row.pop("id"))
         assert_timezone_now_gte_datetime(history_row.pop("history_date"))
 
@@ -2130,6 +2575,136 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
+    # Safety data sheets
+    client, _ = api_client_admin
+
+    url = reverse("safetydatasheet-detail", args=[safety_data_sheet_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    assert not SafetyDataSheet.objects.filter(pk=safety_data_sheet_id).exists()
+
+    history_data1 = {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "-",
+        "pk": safety_data_sheet_id,
+        "name": "SDS0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": True,
+    }
+
+    # Check history
+    response = client.get(reverse("safetydatasheet-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_data_sheet_filename = str(history_row.pop("safety_data_sheet")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_data_sheet_filename.startswith("sds1")
+        assert safety_data_sheet_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    safety_data_sheet_id = safety_data_sheet2.id
+    url = reverse("safetydatasheet-detail", args=[unit_id])
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
+    # Safety instructions
+    client, _ = api_client_admin
+
+    url = reverse("safetyinstruction-detail", args=[safety_instruction_id])
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_204_NO_CONTENT
+
+    assert not SafetyInstruction.objects.filter(pk=safety_instruction_id).exists()
+
+    history_data1 = {
+        "history_user": admin.id,
+        "history_change_reason": None,
+        "history_type": "-",
+        "pk": safety_instruction_id,
+        "name": "IB0001",
+        "reagent_name": "alkohol",
+        "is_validated_by_admin": True,
+    }
+
+    # Check history
+    response = client.get(reverse("safetyinstruction-get-historical-records"))
+
+    assert response.status_code == status.HTTP_200_OK
+
+    expected = [history_data1]
+    actual = json.loads(json.dumps(response.data["results"]))
+    for history_row in actual:
+        int(history_row.pop("id"))
+        assert_timezone_now_gte_datetime(history_row.pop("history_date"))
+
+        safety_instruction_filename = str(history_row.pop("safety_instruction")).rsplit("/", maxsplit=1)[-1]
+
+        assert safety_instruction_filename.startswith("si1")
+        assert safety_instruction_filename.endswith(".pdf")
+
+    assert expected == actual
+
+    client, _ = api_client_lab_manager
+
+    safety_data_sheet_id = safety_data_sheet2.id
+    url = reverse("safetyinstruction-detail", args=[unit_id])
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_project_manager
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client, _ = api_client_lab_worker
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    client = api_client_anon
+
+    response = client.delete(url)
+
+    assert response.status_code == status.HTTP_401_UNAUTHORIZED
+
     # Purities/Qualities
     client, _ = api_client_admin
 
@@ -2188,168 +2763,3 @@ def test_delete_reagents(api_client_admin, api_client_lab_manager, api_client_pr
     response = client.delete(url)
 
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-
-
-@pytest.mark.django_db
-def test_get_safety_instructions(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                 api_client_lab_worker, api_client_anon, reagents):
-
-    reagent1, reagent2 = reagents
-
-    client, _ = api_client_admin
-    url = reverse("reagent-get-safety-instructions")
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    expected = [
-        {
-            "id": reagent1.id,
-            "reagent_name": reagent1.name,
-            "producer": reagent1.producer.abbreviation,
-        },
-        {
-            "id": reagent2.id,
-            "reagent_name": reagent2.name,
-            "producer": reagent2.producer.abbreviation,
-        },
-    ]
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-    client, _ = api_client_lab_manager
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-    client, _ = api_client_project_manager
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-    client, _ = api_client_lab_worker
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-    client = api_client_anon
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-    # Searching
-    url = f"{reverse('reagent-get-safety-instructions')}?search={reagent1.name}"
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    expected = [
-        {
-            "id": reagent1.id,
-            "reagent_name": reagent1.name,
-            "producer": reagent1.producer.abbreviation,
-        },
-    ]
-    actual = json.loads(json.dumps(response.data["results"]))
-
-    assert expected == actual
-
-
-@pytest.mark.django_db
-def test_get_safety_instruction(api_client_admin, api_client_lab_manager, api_client_project_manager,
-                                api_client_lab_worker, api_client_anon, reagents):
-
-    reagent1, _ = reagents
-
-    client, _ = api_client_admin
-    url = reverse("reagent-get-safety-instruction", args=[reagent1.id])
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    # Dropping safety_instruction because it gets a random suffix
-    expected = {
-        "id": reagent1.id,
-    }
-
-    response_data = response.data
-    safety_instruction_name = response_data.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data))
-
-    assert expected == actual
-
-    client, _ = api_client_lab_manager
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    response_data = response.data
-    safety_instruction_name = response_data.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data))
-
-    assert expected == actual
-
-    client, _ = api_client_project_manager
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    response_data = response.data
-    safety_instruction_name = response_data.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data))
-
-    assert expected == actual
-
-    client, _ = api_client_lab_worker
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    response_data = response.data
-    safety_instruction_name = response_data.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data))
-
-    assert expected == actual
-
-    client = api_client_anon
-    response = client.get(url)
-
-    assert response.status_code == status.HTTP_200_OK
-
-    response_data = response.data
-    safety_instruction_name = response_data.pop("safety_instruction").rsplit("/", maxsplit=1)[-1]
-    assert safety_instruction_name.startswith("si1")
-    assert safety_instruction_name.endswith(".pdf")
-
-    actual = json.loads(json.dumps(response_data))
-
-    assert expected == actual

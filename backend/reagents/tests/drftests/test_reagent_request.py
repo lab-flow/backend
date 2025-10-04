@@ -1636,6 +1636,7 @@ def test_change_reagent_request_status(api_client_admin, api_client_lab_manager,
         },
         "lot_no": "2000/02/03",
         "receipt_purchase_date": personal_reagent.receipt_purchase_date.isoformat(),
+        "opening_date": personal_reagent.opening_date.isoformat(),
         "expiration_date": personal_reagent.expiration_date.isoformat(),
         "disposal_utilization_date": None,
         "laboratory": {
